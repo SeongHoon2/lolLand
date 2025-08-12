@@ -6,8 +6,9 @@
 <div class="container">
 </div>
 <jsp:include page="/WEB-INF/views/layout/footer.jsp"/>
-<link rel="stylesheet" href="<c:url value='/resources/css/common.css'/>">
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<link rel="stylesheet" href="<c:url value='/resources/css/auction.css'/>">
+
 <script>
   $(document).ready(function () {
 	
