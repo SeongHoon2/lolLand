@@ -2,7 +2,7 @@ name: Deploy to Lightsail Tomcat
 
 on:
   push:
-    branches: [ main ]         # main 푸시 시 자동 배포
+    branches: [ master ]         # main 푸시 시 자동 배포
   workflow_dispatch:            # 수동 실행 버튼
 
 concurrency:
