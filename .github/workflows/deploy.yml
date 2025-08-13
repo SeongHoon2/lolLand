@@ -31,7 +31,7 @@ env:
   JAVA_VERSION: '8'
   APP_DIR: '.'
   REMOTE_TOMCAT: '/opt/tomcat'
-  TOMCAT_SERVICE: 'tomcat8'
+  TOMCAT_SERVICE: 'tomcat'
   CONTEXT_NAME: 'ROOT'
   HEALTH_URL: 'http://localhost:8080/'
   REMOTE_TMP: '/tmp/deploy'
