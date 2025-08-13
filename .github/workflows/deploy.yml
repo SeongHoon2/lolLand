@@ -2,69 +2,59 @@ name: Deploy to Lightsail Tomcat
 
 on:
   push:
-    branches: [ main, master ]   # 둘 다 배포 트리거
-  workflow_dispatch:              # 수동 실행 버튼
+    branches: [ main, master ]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-lightsail
   cancel-in-progress: true
 
 env:
+  # ── 수정 지점 ────────────────────────────────
   JAVA_VERSION: '8'
   APP_DIR: '.'
   REMOTE_TOMCAT: '/opt/tomcat'
-  TOMCAT_SERVICE: 'tomcat'
+  TOMCAT_SERVICE: 'tomcat'               # tomcat 또는 tomcat8
   CONTEXT_NAME: 'ROOT'
   HEALTH_URL: 'http://localhost:8080/'
   REMOTE_TMP: '/tmp/deploy'
+  # ────────────────────────────────────────────
 
 jobs:
   build-and-deploy:
-    name: Build WAR and Deploy
     runs-on: ubuntu-latest
-
     steps:
-      # 0) 소스
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 0.1) 레이아웃 검증(경로 문제 사전 차단)
       - name: Verify layout
         run: |
           echo "PWD=$PWD"
-          ls -la
-          if [ ! -f "${{ env.APP_DIR }}/pom.xml" ]; then
-            echo "pom.xml not found in ${{ env.APP_DIR }}"; exit 1;
-          fi
+          test -f "${{ env.APP_DIR }}/pom.xml" || (echo "pom.xml not found in ${{ env.APP_DIR }}" && exit 1)
 
-      # 1) JDK8
       - name: Set up Temurin JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
-      # 2) Maven 설치
       - name: Install Maven
         run: |
           sudo apt-get update
           sudo apt-get install -y maven
           mvn -v
 
-      # 3) 빌드 (Maven)
       - name: Build WAR with Maven
         working-directory: ${{ env.APP_DIR }}
         run: mvn -B -DskipTests package
 
-      # 4) WAR 자동 탐색(멀티모듈/서브폴더 대응)
       - name: Locate WAR
         id: locate-war
         run: |
           set -e
-          echo "Searching WAR files under $PWD/${{ env.APP_DIR }} ..."
           FOUND=$(find "${{ env.APP_DIR }}" -type f -name "*.war" | head -n 1 || true)
           if [ -z "$FOUND" ]; then
-            echo "No WAR found. Hints below:"
+            echo "No WAR found."
             grep -n "<packaging>" -n "${{ env.APP_DIR }}/pom.xml" || true
             find "${{ env.APP_DIR }}" -maxdepth 3 -type d -name target -print || true
             exit 1
@@ -75,7 +65,6 @@ jobs:
       - name: Show artifact
         run: ls -l "${{ steps.locate-war.outputs.WAR_PATH }}"
 
-      # 5) (선택) SSH 접속 확인
       - name: Sanity SSH check
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -84,7 +73,7 @@ jobs:
           key: ${{ secrets.LS_SSH_KEY }}
           script: 'echo "SSH connected to $(hostname)"; uname -a'
 
-      # 6) WAR 업로드(서버 임시 디렉터리)
+      # ⬇️ 경로 평탄화: lolLand/target/xxx.war → /tmp/deploy/xxx.war
       - name: Upload WAR to Lightsail (SCP)
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -93,15 +82,27 @@ jobs:
           key: ${{ secrets.LS_SSH_KEY }}
           source: "${{ steps.locate-war.outputs.WAR_PATH }}"
           target: ${{ env.REMOTE_TMP }}
+          strip_components: 2   # 'lolLand/target' 두 단계 제거(필요시 1~3로 조정)
 
-      # 7) Tomcat 중지→교체→시작→헬스체크
+      # (선택) 업로드 결과 확인
+      - name: Verify upload on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LS_HOST }}
+          username: ${{ secrets.LS_USER }}
+          key: ${{ secrets.LS_SSH_KEY }}
+          script: |
+            echo "List ${{ env.REMOTE_TMP }}:"
+            ls -l ${{ env.REMOTE_TMP }} || true
+            echo "Find WAR recursively:"
+            find ${{ env.REMOTE_TMP }} -maxdepth 3 -type f -name "*.war" -print || true
+
       - name: Deploy & Restart Tomcat (SSH)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.LS_HOST }}
           username: ${{ secrets.LS_USER }}
           key: ${{ secrets.LS_SSH_KEY }}
-        # shell script runs on remote host
           script: |
             set -euo pipefail
 
@@ -116,9 +117,10 @@ jobs:
             sudo mkdir -p "$TMPDIR"
             sudo chown -R "$USER":"$USER" "$TMPDIR"
 
-            WAR_FILE="$(ls -t $TMPDIR/*.war | head -n1)"
-            if [ ! -f "$WAR_FILE" ]; then
-              echo "WAR not found in $TMPDIR"; exit 1
+            # ⬇️ 평탄화 실패 대비: 재귀로 WAR 탐색
+            WAR_FILE="$(find "$TMPDIR" -maxdepth 3 -type f -name '*.war' | head -n1 || true)"
+            if [ -z "$WAR_FILE" ]; then
+              echo "WAR not found under $TMPDIR"; exit 1
             fi
             echo "WAR_FILE=$WAR_FILE"
 
@@ -157,7 +159,6 @@ jobs:
 
             echo "Deployed successfully."
 
-      # 8) 실패 시 로그 출력
       - name: Show Tomcat status on failure
         if: failure()
         uses: appleboy/ssh-action@v1.0.3
