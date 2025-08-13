@@ -1,0 +1,160 @@
+# [Secrets: GitHub UI에서 등록하고, YAML엔 절대 값 쓰지 않음]
+#   - LS_HOST      : Lightsail 공인 IP
+#   - LS_USER      : SSH 사용자 (예: ubuntu)
+#   - LS_SSH_KEY   : SSH 프라이빗 키 전체 내용
+#
+# [환경 변수: 아래 env 값만 YAML에서 수정]
+#   - JAVA_VERSION   : 8   
+#   - REMOTE_TOMCAT  : /opt/tomcat  # Tomcat 설치 루트
+#   - TOMCAT_SERVICE : tomcat8      # systemd 서비스명
+#   - CONTEXT_NAME   : ROOT         # ROOT 또는 myapp
+#   - HEALTH_URL     : http://localhost:8080/  # 내부 헬스체크 URL
+#
+# 동작: main 브랜치에 푸시하면 자동 실행(무중단 아님, 중지→교체→시작)
+# =========================================================
+
+name: Deploy to Lightsail Tomcat
+
+on:
+  push:
+    branches: [ main ]      # main 푸시 시 자동 배포
+  workflow_dispatch:         # 수동 실행 버튼
+
+concurrency:
+  group: deploy-lightsail
+  cancel-in-progress: true   # 중복 배포 방지
+
+env:
+  # ---- 서버/앱 설정(수정 지점) ----
+  JAVA_VERSION: '8'                     # JDK 1.8
+  REMOTE_TOMCAT: '/opt/tomcat'          # Tomcat 루트
+  TOMCAT_SERVICE: 'tomcat8'             # systemctl 서비스명
+  CONTEXT_NAME: 'ROOT'                  # 컨텍스트
+  HEALTH_URL: 'http://localhost:8080/'  # 헬스체크 URL
+  # ---------------------------------
+
+  # ---- 빌드/배포 경로 ----
+  WAR_GLOB: 'target/*.war'              # Maven 산출물
+  REMOTE_TMP: '/tmp/deploy'             # 서버 임시 업로드 경로
+
+jobs:
+  build-and-deploy:
+    name: Build WAR and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # 0) 소스 가져오기
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 1) JDK8 설정
+      - name: Set up Temurin JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      # 2) Maven 캐시(선택)
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: maven-${{ runner.os }}-
+
+      # 3) 빌드 (Maven 기준)
+      - name: Build WAR (Maven)
+        run: ./mvnw -B -DskipTests package
+
+        # --- Gradle 사용 시 교체 예시 ---
+        # - name: Build WAR (Gradle)
+        #   run: ./gradlew -x test clean war
+        # ---------------------------------
+
+      # 4) 산출물 확인(디버그)
+      - name: Show artifact
+        run: ls -l ${{ env.WAR_GLOB }}
+
+      # 5) WAR 업로드(서버 임시 디렉터리)
+      - name: Upload WAR to Lightsail (SCP)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.LS_HOST }}
+          username: ${{ secrets.LS_USER }}
+          key: ${{ secrets.LS_SSH_KEY }}
+          source: ${{ env.WAR_GLOB }}
+          target: ${{ env.REMOTE_TMP }}
+
+      # 6) Tomcat 중지→교체→시작→헬스체크
+      - name: Deploy & Restart Tomcat (SSH)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LS_HOST }}
+          username: ${{ secrets.LS_USER }}
+          key: ${{ secrets.LS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+
+            REMOTE_TOMCAT="${{ env.REMOTE_TOMCAT }}"
+            WEBAPPS="$REMOTE_TOMCAT/webapps"
+            WORKDIR="$REMOTE_TOMCAT/work"
+            TMPDIR="${{ env.REMOTE_TMP }}"
+            CONTEXT="${{ env.CONTEXT_NAME }}"
+            SERVICE="${{ env.TOMCAT_SERVICE }}"
+            HEALTH_URL="${{ env.HEALTH_URL }}"
+
+            sudo mkdir -p "$TMPDIR"
+            sudo chown -R "$USER":"$USER" "$TMPDIR"
+
+            WAR_FILE="$(ls -t $TMPDIR/*.war | head -n1)"
+            if [ ! -f "$WAR_FILE" ]; then
+              echo "WAR not found in $TMPDIR"; exit 1
+            fi
+            echo "WAR_FILE=$WAR_FILE"
+
+            echo "[1/4] Stop Tomcat"
+            sudo systemctl stop "$SERVICE" || true
+
+            echo "[2/4] Clean old app & work"
+            sudo rm -rf "$WEBAPPS/${CONTEXT}" "$WORKDIR/"*
+
+            echo "[3/4] Deploy new WAR"
+            if [ "$CONTEXT" = "ROOT" ]; then
+              sudo rm -f "$WEBAPPS/ROOT.war"
+              sudo cp "$WAR_FILE" "$WEBAPPS/ROOT.war"
+            else
+              sudo rm -f "$WEBAPPS/${CONTEXT}.war"
+              sudo cp "$WAR_FILE" "$WEBAPPS/${CONTEXT}.war"
+            fi
+
+            echo "[4/4] Start Tomcat"
+            sudo systemctl start "$SERVICE"
+
+            echo "Health check..."
+            for i in $(seq 1 30); do
+              if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+                echo "Health check OK"; break
+              fi
+              echo "Retry $i/30..."
+              sleep 3
+            done
+
+            if ! curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+              echo "Health check failed. Recent logs:"
+              sudo journalctl -u "$SERVICE" -n 200 --no-pager || true
+              exit 1
+            fi
+
+            echo "Deployed successfully."
+
+      # 7) 실패 시 로그 출력
+      - name: Show Tomcat status on failure
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LS_HOST }}
+          username: ${{ secrets.LS_USER }}
+          key: ${{ secrets.LS_SSH_KEY }}
+          script: |
+            sudo systemctl status ${{ env.TOMCAT_SERVICE }} --no-pager || true
+            sudo journalctl -u ${{ env.TOMCAT_SERVICE }} -n 200 --no-pager || true
