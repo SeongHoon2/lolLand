@@ -11,7 +11,7 @@ concurrency:
 
 env:
   JAVA_VERSION: '8'
-  APP_DIR: 'lolLand'
+  APP_DIR: '.'
   REMOTE_TOMCAT: '/opt/tomcat'
   TOMCAT_SERVICE: 'tomcat'
   CONTEXT_NAME: 'ROOT'
