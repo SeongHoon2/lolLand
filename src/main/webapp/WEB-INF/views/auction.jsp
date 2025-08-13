@@ -10,8 +10,7 @@
 <link rel="stylesheet" href="<c:url value='/resources/css/auction.css'/>">
 
 <script>
-  $(document).ready(function () {
-
-		
-  });
+$(document).ready(function () {
+	
+});
 </script>
