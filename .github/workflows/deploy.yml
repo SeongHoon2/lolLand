@@ -1,31 +1,21 @@
-# [환경 변수: 아래 env만 필요 시 수정]
-#   - JAVA_VERSION   : 8               # JDK 1.8.0_202
-#   - REMOTE_TOMCAT  : /opt/tomcat     # Tomcat 설치 루트
-#   - TOMCAT_SERVICE : tomcat          # systemd 서비스명 (tomcat 또는 tomcat8)
-#   - CONTEXT_NAME   : ROOT            # ROOT 또는 myapp
-#   - HEALTH_URL     : http://localhost:8080/   # 내부 헬스체크 URL
-# =========================================================
-
 name: Deploy to Lightsail Tomcat
 
 on:
   push:
-    branches: [ main ]        # main 푸시 시 자동 배포
-  workflow_dispatch:           # 수동 실행 버튼
+    branches: [ main ]         # main 푸시 시 자동 배포
+  workflow_dispatch:            # 수동 실행 버튼
 
 concurrency:
   group: deploy-lightsail
   cancel-in-progress: true
 
 env:
-  # ---- 서버/앱 설정 ----
   JAVA_VERSION: '8'
+  APP_DIR: 'lolLand'
   REMOTE_TOMCAT: '/opt/tomcat'
   TOMCAT_SERVICE: 'tomcat'
   CONTEXT_NAME: 'ROOT'
   HEALTH_URL: 'http://localhost:8080/'
-
-  # ---- 빌드/배포 경로 ----
   WAR_GLOB: 'target/*.war'
   REMOTE_TMP: '/tmp/deploy'
 
@@ -35,29 +25,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 0) 소스
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Temurin JDK 8
+      # 1) JDK8
+      - name: Set up Temurin JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Cache Maven
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: maven-${{ runner.os }}-
+      # 2) Maven 설치
+      - name: Install Maven
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y maven
+          mvn -v
 
-      - name: Build WAR (Maven)
-        run: ./mvnw -B -DskipTests package
+      # 3) 빌드 (Maven)
+      - name: Build WAR with Maven
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn -B -DskipTests package
 
+      # 4) 산출물 확인
       - name: Show artifact
-        run: ls -l ${{ env.WAR_GLOB }}
+        run: ls -l "${{ env.APP_DIR }}/${{ env.WAR_GLOB }}"
 
-      # (선택) 최초 연결 확인용. 실패 시 SSH/보안그룹/키부터 점검.
+      # 5) (선택) SSH 접속 확인
       - name: Sanity SSH check
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -66,15 +61,17 @@ jobs:
           key: ${{ secrets.LS_SSH_KEY }}
           script: 'echo "SSH connected to $(hostname)"; uname -a'
 
+      # 6) WAR 업로드(서버 임시 디렉터리)
       - name: Upload WAR to Lightsail (SCP)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.LS_HOST }}
           username: ${{ secrets.LS_USER }}
           key: ${{ secrets.LS_SSH_KEY }}
-          source: ${{ env.WAR_GLOB }}
+          source: "${{ env.APP_DIR }}/${{ env.WAR_GLOB }}"
           target: ${{ env.REMOTE_TMP }}
 
+      # 7) Tomcat 중지→교체→시작→헬스체크
       - name: Deploy & Restart Tomcat (SSH)
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -136,6 +133,7 @@ jobs:
 
             echo "Deployed successfully."
 
+      # 8) 실패 시 로그 출력
       - name: Show Tomcat status on failure
         if: failure()
         uses: appleboy/ssh-action@v1.0.3
