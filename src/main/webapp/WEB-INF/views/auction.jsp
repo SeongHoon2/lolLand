@@ -11,6 +11,6 @@
 
 <script>
 $(document).ready(function () {
-	      
+	alert("a");
 });
 </script>
