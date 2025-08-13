@@ -1,24 +1,40 @@
+# =========================================================
+# 🔧 편집/확인 구역 (값만 바꾸면 됩니다)
+# ---------------------------------------------------------
+# [GitHub Secrets: 저장소 UI에서 등록]
+#   - LS_HOST    : Lightsail 공인 IP (예: 52.78.251.164)
+#   - LS_USER    : SSH 사용자 (예: ec2-user)
+#   - LS_SSH_KEY : 프라이빗 키 전체(줄바꿈 포함, BEGIN~END 포함)
+#
+# [환경 변수: 서버 파일/서비스만 맞추면 server.xml은 건드릴 필요 없음]
+#   - JAVA_VERSION   : 8                  # JDK 1.8.0_202
+#   - APP_DIR        : '.'                # pom.xml이 레포 루트면 '.', 하위면 폴더명
+#   - REMOTE_TOMCAT  : /opt/tomcat        # 자동탐지 실패 시 쓸 Fallback CATALINA_BASE
+#   - TOMCAT_SERVICE : tomcat8            # 실제 서비스명(tomcat 또는 tomcat8)
+#   - CONTEXT_NAME   : ROOT               # 루트(/)로 쓰려면 'ROOT'
+#   - HEALTH_URL     : http://localhost:8080/   # 실제 살아있는 경로면 더 좋음(예: /index.jsp, /health)
+#   - REMOTE_TMP     : /tmp/deploy        # 임시 업로드 위치
+# =========================================================
+
 name: Deploy to Lightsail Tomcat
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main, master ]   # 둘 중 어느 브랜치 푸시에도 배포
+  workflow_dispatch:              # 수동 실행도 가능
 
 concurrency:
   group: deploy-lightsail
   cancel-in-progress: true
 
 env:
-  # ── 수정 지점 ────────────────────────────────
   JAVA_VERSION: '8'
   APP_DIR: '.'
   REMOTE_TOMCAT: '/opt/tomcat'
-  TOMCAT_SERVICE: 'tomcat'               # tomcat 또는 tomcat8
+  TOMCAT_SERVICE: 'tomcat8'
   CONTEXT_NAME: 'ROOT'
   HEALTH_URL: 'http://localhost:8080/'
   REMOTE_TMP: '/tmp/deploy'
-  # ────────────────────────────────────────────
 
 jobs:
   build-and-deploy:
@@ -30,9 +46,10 @@ jobs:
       - name: Verify layout
         run: |
           echo "PWD=$PWD"
+          ls -la
           test -f "${{ env.APP_DIR }}/pom.xml" || (echo "pom.xml not found in ${{ env.APP_DIR }}" && exit 1)
 
-      - name: Set up Temurin JDK
+      - name: Set up Temurin JDK 8
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -48,6 +65,7 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: mvn -B -DskipTests package
 
+      # 멀티모듈/서브폴더 대응: 빌드 산출물(WAR) 자동 탐색
       - name: Locate WAR
         id: locate-war
         run: |
@@ -55,6 +73,7 @@ jobs:
           FOUND=$(find "${{ env.APP_DIR }}" -type f -name "*.war" | head -n 1 || true)
           if [ -z "$FOUND" ]; then
             echo "No WAR found."
+            echo "Hints:"
             grep -n "<packaging>" -n "${{ env.APP_DIR }}/pom.xml" || true
             find "${{ env.APP_DIR }}" -maxdepth 3 -type d -name target -print || true
             exit 1
@@ -65,15 +84,16 @@ jobs:
       - name: Show artifact
         run: ls -l "${{ steps.locate-war.outputs.WAR_PATH }}"
 
+      # SSH 연결 확인(선택)
       - name: Sanity SSH check
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.LS_HOST }}
           username: ${{ secrets.LS_USER }}
           key: ${{ secrets.LS_SSH_KEY }}
-          script: 'echo "SSH connected to $(hostname)"; uname -a'
+          script: 'echo "SSH OK on $(hostname)"; uname -a'
 
-      # ⬇️ 경로 평탄화: lolLand/target/xxx.war → /tmp/deploy/xxx.war
+      # 경로 평탄화: <APP_DIR>/target/xxx.war → /tmp/deploy/xxx.war
       - name: Upload WAR to Lightsail (SCP)
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -82,9 +102,8 @@ jobs:
           key: ${{ secrets.LS_SSH_KEY }}
           source: "${{ steps.locate-war.outputs.WAR_PATH }}"
           target: ${{ env.REMOTE_TMP }}
-          strip_components: 2   # 'lolLand/target' 두 단계 제거(필요시 1~3로 조정)
+          strip_components: 2   # 일반적으로 "프로젝트/target" 두 단계 제거(필요시 1~3 조정)
 
-      # (선택) 업로드 결과 확인
       - name: Verify upload on server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -97,6 +116,9 @@ jobs:
             echo "Find WAR recursively:"
             find ${{ env.REMOTE_TMP }} -maxdepth 3 -type f -name "*.war" -print || true
 
+      # ─────────────────────────────────────────────────────────────
+      # server.xml 편집 없이 배포: CATALINA_BASE 자동 탐지 + 헬스체크
+      # ─────────────────────────────────────────────────────────────
       - name: Deploy & Restart Tomcat (SSH)
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -106,31 +128,44 @@ jobs:
           script: |
             set -euo pipefail
 
-            REMOTE_TOMCAT="${{ env.REMOTE_TOMCAT }}"
-            WEBAPPS="$REMOTE_TOMCAT/webapps"
-            WORKDIR="$REMOTE_TOMCAT/work"
+            SERVICE="${{ env.TOMCAT_SERVICE }}"
+            FALLBACK_BASE="${{ env.REMOTE_TOMCAT }}"
             TMPDIR="${{ env.REMOTE_TMP }}"
             CONTEXT="${{ env.CONTEXT_NAME }}"
-            SERVICE="${{ env.TOMCAT_SERVICE }}"
             HEALTH_URL="${{ env.HEALTH_URL }}"
+
+            # 0) CATALINA_BASE 자동 탐지
+            CAT_BASE="$(sudo systemctl show "$SERVICE" -p Environment | sed -n 's/.*CATALINA_BASE=\([^;]*\).*/\1/p' || true)"
+            if [ -z "$CAT_BASE" ]; then
+              CAT_BASE="$(ps -ef | awk '/org.apache.catalina.startup.Bootstrap/ && !/awk|grep/ { for(i=1;i<=NF;i++) if ($i ~ /-Dcatalina.base=/) { split($i,a,"="); print a[2]; } }' | head -n1 || true)"
+            fi
+            if [ -z "$CAT_BASE" ]; then
+              CAT_BASE="$FALLBACK_BASE"
+            fi
+
+            WEBAPPS="$CAT_BASE/webapps"
+            WORKDIR="$CAT_BASE/work"
+
+            echo "CATALINA_BASE=$CAT_BASE"
+            echo "WEBAPPS=$WEBAPPS"
 
             sudo mkdir -p "$TMPDIR"
             sudo chown -R "$USER":"$USER" "$TMPDIR"
 
-            # ⬇️ 평탄화 실패 대비: 재귀로 WAR 탐색
+            # 업로드 WAR 찾기(평탄화 실패 대비 재귀)
             WAR_FILE="$(find "$TMPDIR" -maxdepth 3 -type f -name '*.war' | head -n1 || true)"
             if [ -z "$WAR_FILE" ]; then
               echo "WAR not found under $TMPDIR"; exit 1
             fi
             echo "WAR_FILE=$WAR_FILE"
 
-            echo "[1/4] Stop Tomcat"
+            echo "[1/5] Stop Tomcat"
             sudo systemctl stop "$SERVICE" || true
 
-            echo "[2/4] Clean old app & work"
-            sudo rm -rf "$WEBAPPS/${CONTEXT}" "$WORKDIR/"*
+            echo "[2/5] Clean old app & work"
+            sudo rm -rf "$WEBAPPS/${CONTEXT}" "$WORKDIR/"* || true
 
-            echo "[3/4] Deploy new WAR"
+            echo "[3/5] Deploy new WAR -> $WEBAPPS"
             if [ "$CONTEXT" = "ROOT" ]; then
               sudo rm -f "$WEBAPPS/ROOT.war"
               sudo cp "$WAR_FILE" "$WEBAPPS/ROOT.war"
@@ -138,22 +173,48 @@ jobs:
               sudo rm -f "$WEBAPPS/${CONTEXT}.war"
               sudo cp "$WAR_FILE" "$WEBAPPS/${CONTEXT}.war"
             fi
+            sudo ls -l "$WEBAPPS" || true
 
-            echo "[4/4] Start Tomcat"
+            echo "[4/5] Start Tomcat"
             sudo systemctl start "$SERVICE"
 
-            echo "Health check..."
-            for i in $(seq 1 30); do
+            echo "[5/5] Health check..."
+            # 1차: 지정 HEALTH_URL
+            for i in $(seq 1 40); do   # 최대 120초 대기(3초 x 40)
               if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
-                echo "Health check OK"; break
+                echo "Health check OK on $HEALTH_URL"; break
               fi
-              echo "Retry $i/30..."
+              echo "Retry $i/40 at $HEALTH_URL..."
               sleep 3
             done
 
+            # 2차: 컨텍스트 기반 URL 시도(컨텍스트가 ROOT가 아닐 때)
             if ! curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+              if [ "$CONTEXT" != "ROOT" ]; then
+                FALLBACK_URL="http://localhost:8080/${CONTEXT}/"
+                echo "Trying fallback URL: $FALLBACK_URL"
+                for i in $(seq 1 20); do
+                  if curl -fsS "$FALLBACK_URL" >/dev/null 2>&1; then
+                    echo "Health check OK on $FALLBACK_URL"; break
+                  fi
+                  echo "Retry $i/20 at $FALLBACK_URL..."
+                  sleep 3
+                done
+              fi
+            fi
+
+            # 최종 판정
+            if ! curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+              if [ "$CONTEXT" != "ROOT" ]; then
+                FALLBACK_URL="http://localhost:8080/${CONTEXT}/"
+                if curl -fsS "$FALLBACK_URL" >/dev/null 2>&1; then
+                  echo "Deployed successfully (fallback URL OK)."
+                  exit 0
+                fi
+              fi
               echo "Health check failed. Recent logs:"
               sudo journalctl -u "$SERVICE" -n 200 --no-pager || true
+              [ -f "$CAT_BASE/logs/catalina.out" ] && sudo tail -n 200 "$CAT_BASE/logs/catalina.out" || true
               exit 1
             fi
 
@@ -168,4 +229,7 @@ jobs:
           key: ${{ secrets.LS_SSH_KEY }}
           script: |
             sudo systemctl status ${{ env.TOMCAT_SERVICE }} --no-pager || true
-            sudo journalctl -u ${{ env.TOMCAT_SERVICE }} -n 200 --no-pager || true
+            # CATALINA_BASE 로그도 덤프
+            CAT_BASE="$(sudo systemctl show ${{ env.TOMCAT_SERVICE }} -p Environment | sed -n 's/.*CATALINA_BASE=\([^;]*\).*/\1/p' || true)"
+            [ -z "$CAT_BASE" ] && CAT_BASE="$(ps -ef | awk '/org.apache.catalina.startup.Bootstrap/ && !/awk|grep/ { for(i=1;i<=NF;i++) if ($i ~ /-Dcatalina.base=/) { split($i,a,"="); print a[2]; } }' | head -n1 || true)"
+            [ -f "$CAT_BASE/logs/catalina.out" ] && sudo tail -n 200 "$CAT_BASE/logs/catalina.out" || true
