@@ -105,7 +105,8 @@ public class PageController {
     		String keyPath;
     		String osName = System.getProperty("os.name").toLowerCase();
     		if (osName.contains("win")) {
-    			keyPath = "C:/Users/User/Desktop/test/lolLandKey.json";
+    			//keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json"; // home
+    			keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
     		} else {
     			keyPath = "/opt/etc/keys/lolLandKey.json";
     		}
@@ -148,6 +149,17 @@ public class PageController {
     		
     		commonService.updAuctionStatus(seq_params);
     		
+    		String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            StringBuilder sb = new StringBuilder();
+            Random rand = new Random();
+
+            for (int i = 0; i < 8; i++) {
+                int index = rand.nextInt(chars.length());
+                sb.append(chars.charAt(index));
+            }
+
+            String randomCode = sb.toString();
+    		
     		for (Map<String, Object> row : members) {
     			if(!row.get("NO").toString().equals("")    &&
     			   !row.get("NICK").toString().equals("")  &&
@@ -163,6 +175,7 @@ public class PageController {
     				params.put("MROLE",     row.get("MROLE").toString());
     				params.put("SROLE",     row.get("SROLE").toString());
     				params.put("LEADERFLG", row.get("LEADERFLG").toString());
+    				params.put("RANDOMCODE",randomCode);
     				commonService.insAuctionMember(params);
     			}
     		}
