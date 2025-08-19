@@ -4,6 +4,7 @@
 
 <jsp:include page="/WEB-INF/views/layout/header.jsp"/>
 <div class="container">
+
 </div>
 <jsp:include page="/WEB-INF/views/layout/footer.jsp"/>
 
@@ -14,3 +15,4 @@ $(document).ready(function () {
 	
 });
 </script>
+

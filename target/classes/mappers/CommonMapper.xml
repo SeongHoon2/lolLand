@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.lolland.dao.CommonDao">
+  <insert id="insAuctionMember" >
+INSERT INTO AUC_TARGET
+    (AUC_CD, NO, NICK, TIER, MROLE, SROLE, LEADERFLG, USE_YN, REG_DT)
+    VALUES
+    (#{AUC_CD}, #{NO}, #{NICK}, #{TIER}, #{MROLE}, #{SROLE}, #{LEADERFLG}, 'Y', NOW())
+);
+  </insert>
+</mapper>

@@ -12,10 +12,17 @@
 <body>
 <header class="header">
   <div class="container">
-    <h1 class="brand">lolLand</h1>
+    <!-- <h1 class="brand">lolLand</h1> -->
+    <h1 class="brand">.</h1>
     <nav class="nav">
-      <a href="<c:url value='/auction'/>">홈</a>
       <a href="<c:url value='/auction'/>">경매</a>
+      <a href="<c:url value='/admin'/>  ">관리</a>
     </nav>
   </div>
 </header>
+
+<script>
+$(document).ready(function () {
+	
+});
+</script>
