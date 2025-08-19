@@ -14,7 +14,11 @@ public class CommonService {
     private CommonDao commonDao;
 	
 	public void insAuctionMember(Map<String, Object> params) {
-	    	commonDao.insAuctionMember(params);
+	    commonDao.insAuctionMember(params);
+	}
+
+	public void updAuctionStatus(Map<String, Object> params) {
+		commonDao.updAuctionStatus(params);
 	}
 
 }

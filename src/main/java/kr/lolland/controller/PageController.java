@@ -99,7 +99,8 @@ public class PageController {
     }
 
     @RequestMapping(value = "/updAuctionMember", method = RequestMethod.POST)
-    public String updMember(Model model, @RequestParam ("groupCd") String groupCd) {
+    public Map<String, Object> updMember(Model model, @RequestParam ("groupCd") String groupCd) {
+    	Map<String, Object> result = new HashMap<>();
     	try {
     		String keyPath;
     		String osName = System.getProperty("os.name").toLowerCase();
@@ -145,6 +146,8 @@ public class PageController {
     		    members.add(m);
     		}
     		
+    		commonService.updAuctionStatus(seq_params);
+    		
     		for (Map<String, Object> row : members) {
     			if(!row.get("NO").toString().equals("")    &&
     			   !row.get("NICK").toString().equals("")  &&
@@ -163,11 +166,8 @@ public class PageController {
     				commonService.insAuctionMember(params);
     			}
     		}
-    		
-    	} catch (Exception e) {
-    		e.printStackTrace();
-    		model.addAttribute("error", "스프레드시트 연동 오류: " + e.getMessage());
-    	}
-    	return "auction";
+    	} catch (Exception e) {}
+    	
+    	return result;
     }
 }

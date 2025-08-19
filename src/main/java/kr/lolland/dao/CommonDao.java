@@ -6,4 +6,6 @@ import java.util.Map;
 public interface CommonDao {
 
 	void insAuctionMember(Map<String, Object> params);
+
+	void updAuctionStatus(Map<String, Object> params);
 }

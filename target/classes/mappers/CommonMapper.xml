@@ -6,4 +6,9 @@
   INSERT INTO AUC_TARGET (AUC_CD, AUC_SEQ, NO, NICK, TIER, MROLE, SROLE, LEADERFLG, USE_YN, REG_DT)
                   VALUES (#{AUC_CD}, #{AUC_SEQ} , #{NO}, #{NICK}, #{TIER}, #{MROLE}, #{SROLE}, #{LEADERFLG}, 'Y', NOW())
   </insert>
+  <update id="updAuctionStatus" >
+  UPDATE AUC_TARGET 
+     SET USE_YN = 'N'
+   WHERE AUC_CD = #{seq_params}
+  </update>
 </mapper>
