@@ -13,8 +13,15 @@ public class AuctionService {
     @Autowired
     private AuctionDao auctionDao;
 
-    @Transactional(readOnly = true)
-    public List<Map<String, Object>> listItems() {
-        return auctionDao.selectAll();
-    }
+	public Map<String, Object> getAuctionMax(Map<String, Object> seq_params) {
+		return auctionDao.getAuctionMax(seq_params);
+	}
+
+	public List<Map<String, Object>> getAucTargetListA() {
+		return auctionDao.getAucTargetListA();
+	}
+	
+	public List<Map<String, Object>> getAucTargetListB() {
+		return auctionDao.getAucTargetListB();
+	}
 }

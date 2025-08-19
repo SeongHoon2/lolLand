@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import kr.lolland.controller.PageController;
 import kr.lolland.service.CommonService;
+import kr.lolland.service.AuctionService;
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -33,9 +34,12 @@ public class PageController {
 	
 	private static final String ADMIN_AUTH = "ADMIN_AUTH";
 	private static final String ADMIN_SERIAL_KEY = System.getenv().getOrDefault("ADMIN_SERIAL_KEY", "lolLand1!2@");
-	
+
 	@Autowired
 	private CommonService commonService;
+	
+	@Autowired
+	private AuctionService auctionService;
 	
 	@RequestMapping(value = "/", method = RequestMethod.GET)
 	public String index(Model model) {
@@ -123,10 +127,15 @@ public class PageController {
     		List<List<Object>> values = response.getValues();
     		List<Map<String, Object>> members = new ArrayList<Map<String, Object>>();
     		
+    		Map<String, Object> seq_params = new HashMap<>();
+    		seq_params.put("seq_params",groupCd);
+    		
+    		Map<String, Object> aucSeq = auctionService.getAuctionMax(seq_params);
     		
     		for (List<Object> row : values) {
     		    Map<String, Object> m = new HashMap<>();
     		    m.put("AUC_CD",    groupCd);  
+    		    m.put("AUC_SEQ",   aucSeq.get("MAX_CNT").toString());
     		    m.put("NO",        row.size() > 0 ? row.get(0) : "");
     		    m.put("NICK",      row.size() > 1 ? row.get(1) : "");
     		    m.put("TIER",      row.size() > 2 ? row.get(2) : "");
@@ -137,17 +146,23 @@ public class PageController {
     		}
     		
     		for (Map<String, Object> row : members) {
-    		    Map<String, Object> params = new HashMap<>();
-    		    params.put("AUC_CD",    row.get("AUC_CD").toString());
-    		    params.put("NO",        row.get("NO").toString());
-    		    params.put("NICK",      row.get("NICK").toString());
-    		    params.put("TIER",      row.get("TIER").toString());
-    		    params.put("MROLE",     row.get("MROLE").toString());
-    		    params.put("SROLE",     row.get("SROLE").toString());
-    		    params.put("LEADERFLG", row.get("LEADERFLG").toString());
-    		    commonService.insAuctionMember(params);
+    			if(!row.get("NO").toString().equals("")    &&
+    			   !row.get("NICK").toString().equals("")  &&
+    			   !row.get("TIER").toString().equals("")  &&
+    			   !row.get("MROLE").toString().equals("")) 
+    			{
+    				Map<String, Object> params = new HashMap<>();
+    				params.put("AUC_CD",    row.get("AUC_CD").toString());
+    				params.put("AUC_SEQ",   row.get("AUC_SEQ").toString());
+    				params.put("NO",        row.get("NO").toString());
+    				params.put("NICK",      row.get("NICK").toString());
+    				params.put("TIER",      row.get("TIER").toString());
+    				params.put("MROLE",     row.get("MROLE").toString());
+    				params.put("SROLE",     row.get("SROLE").toString());
+    				params.put("LEADERFLG", row.get("LEADERFLG").toString());
+    				commonService.insAuctionMember(params);
+    			}
     		}
-    		
     		
     	} catch (Exception e) {
     		e.printStackTrace();
