@@ -19,10 +19,11 @@ SELECT
     A.TIER,
     A.MROLE,
     A.SROLE,
+    A.POINT,
     A.LEADERFLG,
     DATE_FORMAT(A.REG_DT, '%Y-%m-%d %H:%i:%s') AS REG_DT,
     ROW_NUMBER() OVER (
-        ORDER BY 
+        ORDER BY A.LEADERFLG DESC,
             CASE A.TIER
                 WHEN 'C'  THEN 1
                 WHEN 'GM' THEN 2
@@ -46,7 +47,7 @@ WHERE A.AUC_CD = 1
         WHERE AUC_CD = 1
           AND USE_YN = 'Y'
   )
-ORDER BY 
+ORDER BY A.LEADERFLG DESC,
     CASE A.TIER
         WHEN 'C'  THEN 1
         WHEN 'GM' THEN 2
@@ -73,9 +74,10 @@ SELECT
     A.MROLE,
     A.SROLE,
     A.LEADERFLG,
+    A.POINT,
     DATE_FORMAT(A.REG_DT, '%Y-%m-%d %H:%i:%s') AS REG_DT,
     ROW_NUMBER() OVER (
-        ORDER BY 
+        ORDER BY A.LEADERFLG DESC,
             CASE A.TIER
                 WHEN 'C'  THEN 1
                 WHEN 'GM' THEN 2
@@ -99,7 +101,7 @@ WHERE A.AUC_CD = 2
         WHERE AUC_CD = 2
           AND USE_YN = 'Y'
   )
-ORDER BY 
+ORDER BY A.LEADERFLG DESC,
     CASE A.TIER
         WHEN 'C'  THEN 1
         WHEN 'GM' THEN 2

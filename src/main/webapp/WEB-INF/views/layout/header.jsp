@@ -8,12 +8,13 @@
   <title>lolLand</title>
   <link rel="stylesheet" href="<c:url value='/resources/css/common.css'/>">
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <link rel="shortcut icon" href="/resources/img/logo.png" type="image/x-icon">
+  <link rel="icon" href="/resources/img/logo.png" type="image/x-icon">
 </head>
 <body>
 <header class="header">
   <div class="container">
     <h1 class="brand">lolLand</h1>
-    <!-- <h1 class="brand">.</h1> -->
     <nav class="nav">
       <a href="<c:url value='/auction'/>">경매</a>
       <a href="<c:url value='/admin'/>  ">관리</a>

@@ -1,12 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
 
-.admin_title{
+.admin_title {
   width: 1200px;
   margin: 0 auto;
-  height: 50px;
+  height: 40px;
   margin-top: 30px;
   text-align: center;
   font-family: "Noto Sans KR", sans-serif;
+
+  display: grid;
+  grid-template-columns: 590px 590px;
+  align-items: center;
+}
+
+.cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+  justify-content: center;
 }
 
 .admin_updBtn{
@@ -17,8 +29,8 @@
   font-weight: bold;
   background-color: transparent;
   cursor: pointer;
-  width: 80px;
-  height: 36px;
+  width: 60px;
+  height: 30px;
 }
 .admin_updBtn:hover{
   border: 1px solid #1565C0;
@@ -126,4 +138,8 @@
 @keyframes spin {
   0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.row_tr{
+	height : 42px;
 }

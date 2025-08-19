@@ -28,8 +28,8 @@ public class AuctionController {
             Map<String,Object> dt1 = new HashMap<>();
             Map<String,Object> dt2 = new HashMap<>();
             
-            dt1.put("dt", "-");
-            dt2.put("dt", "-");
+            dt1.put("dt", "0000-00-00 00:00:00");
+            dt2.put("dt", "0000-00-00 00:00:00");
             
             if(!listA.isEmpty()&&listA!=null) {
             	dt1.put("dt", listA.get(0).get("REG_DT").toString());
@@ -44,10 +44,7 @@ public class AuctionController {
             result.put("dt1", dt1);
             result.put("dt2", dt2);
             
-        } catch (Exception e) {
-            e.printStackTrace();
-            result.put("error", "스프레드시트 연동 오류: " + e.getMessage());
-        }
+        } catch (Exception e) {}
         return result;
     }
 }

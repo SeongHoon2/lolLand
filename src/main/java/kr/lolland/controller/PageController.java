@@ -105,8 +105,8 @@ public class PageController {
     		String keyPath;
     		String osName = System.getProperty("os.name").toLowerCase();
     		if (osName.contains("win")) {
-    			//keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json"; // home
-    			keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
+    			keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json"; // home
+    			//keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
     		} else {
     			keyPath = "/opt/etc/keys/lolLandKey.json";
     		}
