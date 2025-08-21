@@ -69,81 +69,80 @@ function getAucTarget(){
 }
 
 function drawAucTarget(listA, listB, dt1, dt2){
-	var html1 = "GROUP1 연동 시각&nbsp;:&nbsp;" + dt1.dt;
-	$("#dt1Txt").html(html1);
-	var html2 = "GROUP2 연동 시각&nbsp;:&nbsp;" + dt2.dt;
-	$("#dt2Txt").html(html2);
-
-	$("#group1").html(buildGroupTable('GROUP1', listA));
-	$("#group2").html(buildGroupTable('GROUP2', listB));
+  $("#dt1Txt").html("GROUP1 연동 시각&nbsp;:&nbsp;" + dt1.dt);
+  $("#dt2Txt").html("GROUP2 연동 시각&nbsp;:&nbsp;" + dt2.dt);
+  const code1 = "Code : "+dt1.cd;
+  const code2 = "Code : "+dt2.cd;
+  $("#group1").html(buildGroupTable('GROUP1', listA, code1));
+  $("#group2").html(buildGroupTable('GROUP2', listB, code2));
 }
 
-function buildGroupTable(title, list) {
-	var html = "<div class='group-box'>";
-	html += "<h3 style='margin-bottom:18px;'>" + title + "</h3>";
-	html += "<table class='auc-table'>";
+function buildGroupTable(title, list, codeText) {
+	/* step
+	경매 종료(연동 대기중)
+	연동 완료(경매 대기중)
+	경매 진행중
 
-	html += "<colgroup>"
-	     +  "<col style='width:11%'>"
-	     +  "<col style='width:34%'>"
-	     +  "<col style='width:9%'>"
-	     +  "<col style='width:12%'>"
-	     +  "<col style='width:12%'>"
-	     +  "<col style='width:11%'>"
-	     +  "<col style='width:11%'>"
-	     +  "</colgroup>";
+	*/
+  var html = "<div class='group-box'>";
+  html += "<div class='group-header'>";
+  html +=   "<h3 class='group-title'>" + title + "</h3>";
+  html +=   "<span class='group-code-badge'>" + (codeText||"") + "</span>";
+  html += "</div>";
+  html += "<table class='auc-table'>";
 
-	html += "<thead><tr>"
-	     +  "<th>순번</th>"
-	     +  "<th style=\"text-align:center;\">닉네임</th>"
-	     +  "<th>티어</th>"
-	     +  "<th>주포지션</th>"
-	     +  "<th>부포지션</th>"
-	     +  "<th>포인트</th>"
-	     +  "<th>팀장</th>"
-	     +  "</tr></thead><tbody>";
+  html += "<colgroup>"
+       +  "<col style='width:11%'>"
+       +  "<col style='width:34%'>"
+       +  "<col style='width:9%'>"
+       +  "<col style='width:12%'>"
+       +  "<col style='width:12%'>"
+       +  "<col style='width:11%'>"
+       +  "<col style='width:11%'>"
+       +  "</colgroup>";
 
-	if (list && list.length > 0) {
-		$.each(list, function(i, row) {
-		  html += "<tr class=\"row_tr\">";
-		  html += "<td class='td-center'>" + (row.ROW_RNK || "") + "</td>";
+  html += "<thead><tr>"
+       +  "<th>순번</th>"
+       +  "<th style=\"text-align:center;\">닉네임</th>"
+       +  "<th>티어</th>"
+       +  "<th>주포지션</th>"
+       +  "<th>부포지션</th>"
+       +  "<th>포인트</th>"
+       +  "<th>팀장</th>"
+       +  "</tr></thead><tbody>";
 
-		  var nick = row.NICK || "";
-		  html += "<td class='td-left' title='" + nick.replace(/'/g, "&apos;") + "'>" + nick + "</td>";
+  if (list && list.length > 0) {
+    $.each(list, function(i, row) {
+      html += "<tr class=\"row_tr\">";
+      html += "<td class='td-center'>" + (row.ROW_RNK || "") + "</td>";
 
-		  html += "<td class='td-center'>" + (row.TIER || "") + "</td>";
-		  html += "<td class='td-center'>" + (row.MROLE || "") + "</td>";
-		  html += "<td class='td-center'>" + (row.SROLE || "") + "</td>";
+      var nick = row.NICK || "";
+      html += "<td class='td-left' title='" + nick.replace(/'/g, "&apos;") + "'>" + nick + "</td>";
 
-		  if (row.LEADERFLG === "Y") {
-		        var inputId = "point_" + row.NO; 
-		        var inputName = "POINT[" + row.NO + "]";
-		        html += "<td class='td-center'>" +
-		                "<input type='text' " +
-		                "id='" + inputId + "' " +
-		                "name='" + inputName + "' " +
-		                "value='1000' " +
-		                "style='width:56px; text-align:center;font-family: \"Noto Sans KR\", sans-serif;'" +
-		                "maxlength='4' " +
-		                "oninput=\"this.value=this.value.replace(/[^0-9]/g,'');\" />" +
-		                "</td>";
-	      } else {
-	        html += "<td class='td-center'></td>";
-	      }
+      html += "<td class='td-center'>" + (row.TIER || "") + "</td>";
+      html += "<td class='td-center'>" + (row.MROLE || "") + "</td>";
+      html += "<td class='td-center'>" + (row.SROLE || "") + "</td>";
 
-		  html += "<td class='td-center'>" + (row.LEADERFLG === "Y" ? "★" : "") + "</td>";
-		  html += "</tr>";
-		});
-	} else {
-	  html += "<tr><td colspan='6' class='td-empty'>데이터가 없습니다</td></tr>";
-	}
+      if (row.LEADERFLG === "Y") {
+        var inputId = "point_" + row.NO; 
+        var inputName = "POINT[" + row.NO + "]";
+        html += "<td class='td-center'>"
+             +  "<input type='text' id='" + inputId + "' name='" + inputName + "' value='1000' "
+             +  "style='width:56px; text-align:center;font-family: \"Noto Sans KR\", sans-serif;' maxlength='4' "
+             +  "oninput=\"this.value=this.value.replace(/[^0-9]/g,'');\" />"
+             +  "</td>";
+      } else {
+        html += "<td class='td-center'></td>";
+      }
 
-	html += "</tbody></table></div>";
-	return html;
-}
+      html += "<td class='td-center'>" + (row.LEADERFLG === "Y" ? "★" : "") + "</td>";
+      html += "</tr>";
+    });
+  } else {
+    html += "<tr><td colspan='7' class='td-empty'>데이터가 없습니다</td></tr>";
+  }
 
-function esc(s){
-	  s = (s == null) ? "" : String(s);
-	  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  html += "</tbody></table></div>";
+  return html;
 }
 </script>
