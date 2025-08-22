@@ -15,6 +15,7 @@
 	                     , REG_DT
 	                     , RANDOMCODE
 	                     , POINT
+	                     , A_STATUS
 	                     )
                   VALUES (
 					       #{AUC_CD}
@@ -29,6 +30,7 @@
 					     , NOW()
 					     , #{RANDOMCODE}
 					     , 0
+					     , 'SYNC'
 					     )
   </insert>
   <update id="updAuctionStatus" >

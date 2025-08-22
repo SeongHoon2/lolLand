@@ -30,17 +30,21 @@ public class AuctionController {
             
             dt1.put("dt", "0000-00-00 00:00:00");
             dt1.put("cd", "00000000");
+            dt1.put("st", "WAIT");
             dt2.put("dt", "0000-00-00 00:00:00");
             dt2.put("cd", "00000000");
+            dt2.put("st", "WAIT");
             
             if(!listA.isEmpty()&&listA!=null) {
             	dt1.put("dt", listA.get(0).get("REG_DT").toString());
             	dt1.put("cd", listA.get(0).get("RANDOMCODE").toString());
+            	dt1.put("st", listA.get(0).get("A_STATUS").toString());
             }
            
             if(!listB.isEmpty()&&listB!=null) {
             	dt2.put("dt", listB.get(0).get("REG_DT").toString());
             	dt2.put("cd", listB.get(0).get("RANDOMCODE").toString());
+            	dt2.put("st", listB.get(0).get("A_STATUS").toString());
             }
             
             result.put("listA", listA);

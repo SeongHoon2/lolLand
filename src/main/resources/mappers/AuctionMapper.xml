@@ -23,6 +23,7 @@ SELECT
     A.LEADERFLG,
     DATE_FORMAT(A.REG_DT, '%Y-%m-%d %H:%i:%s') AS REG_DT,
     A.RANDOMCODE,
+    A.A_STATUS,
     ROW_NUMBER() OVER (
         ORDER BY A.LEADERFLG DESC,
             CASE A.TIER
@@ -78,6 +79,7 @@ SELECT
     A.POINT,
     DATE_FORMAT(A.REG_DT, '%Y-%m-%d %H:%i:%s') AS REG_DT,
     A.RANDOMCODE,
+    A.A_STATUS,
     ROW_NUMBER() OVER (
         ORDER BY A.LEADERFLG DESC,
             CASE A.TIER

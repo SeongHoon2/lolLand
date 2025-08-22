@@ -7,11 +7,11 @@
 <div class="admin_title">
   <div class="cluster cluster-left">
     <span id="dt1Txt"></span>
-    <button name="1" class="admin_updBtn">연동</button>
+    <span id="btn1Area"></span>
   </div>
   <div class="cluster cluster-right">
     <span id="dt2Txt"></span>
-    <button name="2" class="admin_updBtn">연동</button>
+    <span id="btn2Area"></span>
   </div>
 </div>
 
@@ -29,18 +29,14 @@
 
 <script>
 $(document).ready(function () {
-
 	getAucTarget();
-	
-	$(".admin_updBtn").on("click", function(){
+
+	$(document).on("click", ".admin_updBtn", function(){
 		var groupCd = $(this).attr("name");
 		if (confirm(groupCd+"번 그룹을 연동하시겠습니까?\n연동 후 데이터 되돌리기는 불가능합니다.")) {
-			param = {
-				      "groupCd" : groupCd
-				    };
+			var param = { "groupCd" : groupCd };
 			$("#loading-overlay").show();
-		    
-	        $.ajax({
+			$.ajax({
 				method : 'POST',
 				async : true,
 				url : '/updAuctionMember',
@@ -53,7 +49,6 @@ $(document).ready(function () {
 			});
 		}
 	});
-	
 });
 
 function getAucTarget(){
@@ -69,25 +64,49 @@ function getAucTarget(){
 }
 
 function drawAucTarget(listA, listB, dt1, dt2){
-  $("#dt1Txt").html("GROUP1 연동 시각&nbsp;:&nbsp;" + dt1.dt);
-  $("#dt2Txt").html("GROUP2 연동 시각&nbsp;:&nbsp;" + dt2.dt);
-  const code1 = "Code : "+dt1.cd;
-  const code2 = "Code : "+dt2.cd;
-  $("#group1").html(buildGroupTable('GROUP1', listA, code1));
-  $("#group2").html(buildGroupTable('GROUP2', listB, code2));
+  $("#dt1Txt").html("GROUP1 연동 시각&nbsp;:&nbsp;" + (dt1.dt||""));
+  $("#dt2Txt").html("GROUP2 연동 시각&nbsp;:&nbsp;" + (dt2.dt||""));
+  const code1 = "Code : " + (dt1.cd || "");
+  const code2 = "Code : " + (dt2.cd || "");
+  const stat1 = dt1.st || "";
+  const stat2 = dt2.st || "";
+  $("#group1").html(buildGroupTable('GROUP1', listA, code1, stat1));
+  $("#group2").html(buildGroupTable('GROUP2', listB, code2, stat2));
+  renderButton("#btn1Area", "1", stat1);
+  renderButton("#btn2Area", "2", stat2);
 }
 
-function buildGroupTable(title, list, codeText) {
-	/* step
-	경매 종료(연동 대기중)
-	연동 완료(경매 대기중)
-	경매 진행중
+function getStatusInfo(raw){
+	switch ((raw || "").toUpperCase()) {
+	    case "WAIT": return { label: "경매 종료(연동 대기)", className: "status-waiting" };
+	    case "SYNC": return { label: "연동 완료(경매 대기중)", className: "status-synced" };
+	    case "ING":  return { label: "경매 진행중", className: "status-active" };
+	}
+}
 
-	*/
+function renderButton(target, groupCd, status){
+	var s = (status||"").toUpperCase();
+	var html = "";
+	if(s === "WAIT"){
+		html = "<button name='"+groupCd+"' class='admin_updBtn'>연동</button>";
+	}else if(s === "SYNC"){
+		html = "<button name='"+groupCd+"' class='admin_startBtn'>경매 시작</button>";
+	}else{
+		html = "<button class='admin_ingBtn' disabled>경매 진행중</button>";
+	}
+	$(target).html(html);
+}
+
+function buildGroupTable(title, list, codeText, statusText) {
+  const st = getStatusInfo(statusText);
+
   var html = "<div class='group-box'>";
   html += "<div class='group-header'>";
   html +=   "<h3 class='group-title'>" + title + "</h3>";
-  html +=   "<span class='group-code-badge'>" + (codeText||"") + "</span>";
+  html +=   "<div class='group-code-wrap'>";
+  html +=     "<span class='group-code-badge'>" + (codeText || "") + "</span>";
+  html +=     "<span class='group-code-status " + st.className + "' title='" + st.label + "'>" + st.label + "</span>";
+  html +=   "</div>";
   html += "</div>";
   html += "<table class='auc-table'>";
 
