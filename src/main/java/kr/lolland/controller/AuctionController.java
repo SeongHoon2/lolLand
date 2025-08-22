@@ -40,7 +40,7 @@ public class AuctionController {
            
             if(!listB.isEmpty()&&listB!=null) {
             	dt2.put("dt", listB.get(0).get("REG_DT").toString());
-            	dt2.put("cd", listA.get(0).get("RANDOMCODE").toString());
+            	dt2.put("cd", listB.get(0).get("RANDOMCODE").toString());
             }
             
             result.put("listA", listA);
