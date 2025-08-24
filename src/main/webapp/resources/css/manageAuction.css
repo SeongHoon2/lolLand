@@ -1,0 +1,37 @@
+:root{
+  --border:#1f2937; --bg:#0f172a; --bg2:#0b1220;
+  --text:#e5e7eb; --muted:#9ca3af; --accent:#2563eb;
+}
+body{background:#0b1220;color:var(--text);font-family:'Noto Sans KR',sans-serif;margin:0}
+.container{max-width:1280px;margin:24px auto;padding:0 16px}
+
+.am-toolbar{display:flex;margin-bottom:12px}
+.am-input{height:34px;padding:6px 10px;border-radius:8px;border:1px solid #374151;background:#0f172a;color:var(--text)}
+.am-btn{border-radius:8px;height:34px;padding:0 14px;font-weight:700;cursor:pointer}
+.am-btn-blue{border:1px solid #2563eb;background:#1d4ed8;color:#f8fafc}
+.am-btn-blue:hover{background:#2563eb;color:#fff}
+
+.auction-manage-page{display:flex;gap:16px}
+.am-left{width:360px;background:var(--bg);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column}
+.am-right{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;min-height:520px}
+.am-placeholder{color:var(--muted);display:flex;align-items:center;justify-content:center;height:100%}
+.hidden{display:none}
+
+.am-list{list-style:none;margin:0;padding:0;overflow:auto}
+.am-item{padding:12px;border-bottom:1px solid var(--border);cursor:pointer}
+.am-item:hover{background:#111827}
+.am-item.active{background:#1e293b}
+.am-title{font-weight:600}
+.am-meta{font-size:13px;color:#9ca3af;display:flex;gap:8px}
+
+.am-status{padding:2px 8px;border:1px solid #374151;border-radius:999px;font-size:11px}
+.am-empty{text-align:center;padding:12px;color:#94a3b8}
+
+.am-table{width:100%;border-collapse:collapse;background:var(--bg2)}
+.am-table th,.am-table td{border:1px solid var(--border);padding:8px;font-size:13px;text-align:center}
+.am-table thead th{background:#111827}
+.td-empty{text-align:center;color:#94a3b8;padding:16px}
+
+.am-pagination{margin:8px;text-align:center}
+.am-pagination a{margin:0 6px;color:var(--accent);cursor:pointer;text-decoration:none}
+.am-pagination span{margin:0 6px;color:var(--text)}

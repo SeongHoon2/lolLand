@@ -15,15 +15,37 @@
 <header class="header">
   <div class="container">
     <h1 class="brand">lolLand</h1>
-    <nav class="nav">
-      <a href="<c:url value='/auction'/>">경매</a>
-      <a href="<c:url value='/admin'/>  ">관리</a>
-    </nav>
+	<nav class="nav">
+	  <a href="<c:url value='/auction'/>">경매</a>
+	  <div class="menu">
+	    <a href="<c:url value='/admin'/>" class="menu-trigger" role="button" aria-haspopup="true" aria-expanded="false">관리</a>
+	    <div class="dropdown" role="menu">
+	      <a role="menuitem" href="<c:url value='/createAuction'/>">경매 생성</a>
+	      <a role="menuitem" href="<c:url value='/manageAuction'/>">경매 관리</a>
+	    </div>
+	  </div>
+	</nav>
   </div>
 </header>
 
 <script>
 $(document).ready(function () {
-	
+	$('.menu-trigger').on('click', function(e){
+	  e.preventDefault();
+	  const $menu = $(this).closest('.menu');
+	  const open = $menu.toggleClass('open').hasClass('open');
+	  $(this).attr('aria-expanded', open ? 'true' : 'false');
+	});
+
+	$(document).on('click', function(e){
+	  const $m = $('.menu');
+	  if(!$m.is(e.target) && $m.has(e.target).length===0){
+	    $m.removeClass('open').find('.menu-trigger').attr('aria-expanded','false');
+	  }
+	});
+
+	$('.menu').on('mouseenter', function(){ $(this).addClass('open'); });
+	$('.menu').on('mouseleave', function(){ $(this).removeClass('open'); });
+
 });
 </script>

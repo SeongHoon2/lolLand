@@ -11,3 +11,49 @@ body { margin:0; font-family: "Noto Sans KR", sans-serif; background:var(--bg); 
 .nav a { color:var(--text); margin-right:12px; text-decoration:none; }
 .footer { border-top:1px solid #1f2937; background:var(--panel); margin-top:24px; }
 .small { font-size:12px; color:#9ca3af; }
+.nav { display:flex; gap:12px; align-items:center; margin-top:10px; }
+.nav a { color:var(--text); text-decoration:none; }
+
+.menu { position:relative; }
+.menu-trigger { padding:8px 12px; border-radius:10px; display:inline-flex; align-items:center; line-height:1; transition:background .14s ease, color .14s ease, box-shadow .14s ease; }
+.menu:hover .menu-trigger,
+.menu.open .menu-trigger,
+.menu:focus-within .menu-trigger { background:rgba(255,255,255,.06); box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); }
+
+.dropdown {
+  position:absolute; top:calc(100% + 6px); left:0; min-width:220px;
+  background:linear-gradient(180deg, rgba(17,24,39,.92), rgba(15,23,42,.92));
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:14px;
+  box-shadow:0 20px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter:saturate(1.2) blur(8px);
+  padding:6px;
+  display:flex; flex-direction:column; gap:2px;
+  opacity:0; transform:translateY(-8px) scale(.98); pointer-events:none; transition:opacity .16s ease, transform .16s ease;
+  z-index:60;
+}
+
+.dropdown::before {
+  content:""; position:absolute; top:-6px; left:16px; width:10px; height:10px;
+  background:inherit; border-left:1px solid rgba(148,163,184,.18); border-top:1px solid rgba(148,163,184,.18);
+  transform:rotate(45deg);
+}
+
+.dropdown a {
+  display:flex; align-items:center;
+  padding:12px 14px; border-radius:10px; color:var(--text); white-space:nowrap; font-size:14px;
+  transition:background .14s ease, color .14s ease, transform .08s ease;
+}
+
+.dropdown a:hover { background:rgba(96,165,250,.16); color:#eaf2ff; transform:translateX(1px); }
+
+.menu::after { content:""; position:absolute; left:0; right:0; top:100%; height:10px; }
+
+.menu:hover .dropdown,
+.menu:focus-within .dropdown,
+.menu.open .dropdown { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+
+@media (max-width: 640px) {
+  .dropdown { min-width:200px; }
+  .menu-trigger { padding:10px 12px; }
+}

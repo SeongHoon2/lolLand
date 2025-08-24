@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
+
+.ca-toolbar{max-width:720px;margin:24px auto 12px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.ca-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ca-right{display:flex;align-items:center;gap:10px}
+
+.ca-input{height:34px;min-width:200px;padding:6px 10px;border-radius:8px;border:1px solid #374151;background:#0f172a;color:#e5e7eb}
+.ca-input::placeholder{color:#6b7280}
+
+.btn{border-radius:8px;font-weight:700;cursor:pointer;height:34px;padding:0 14px}
+.btn-blue{border:1px solid #2563eb;background:#1d4ed8;color:#f8fafc}
+.btn-blue:hover{border-color:#3b82f6;background:#2563eb;color:#fff}
+.btn-gray{border:1px solid #4b5563;background:#374151;color:#e5e7eb}
+.btn-gray:hover{border-color:#6b7280;background:#4b5563}
+
+.ca-sync-info{font-size:13px;color:#9ca3af}
+
+.ca-body{max-width:720px;margin:0 auto}
+.auc-table{width:100%;table-layout:fixed;border-collapse:collapse;background:#0b1220;color:#e5e7eb;border:1px solid #1f2937;border-radius:10px;overflow:hidden}
+.auc-table th,.auc-table td{padding:8px 10px;border-top:1px solid #172036;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.auc-table thead th{background:#111827;text-align:center}
+.td-center{text-align:center}
+.td-left{text-align:left;padding-left:8px}
+.td-empty{text-align:center;padding:18px 0;color:#94a3b8}
+
+.loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;font-size:18px}
+.spinner{border:6px solid #f3f3f3;border-top:6px solid #2563eb;border-radius:50%;width:50px;height:50px;animation:spin 1s linear infinite}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+
+.row_tr{height:42px}
+
+.point-input{
+  height:28px;
+  padding:2px 8px;
+  border-radius:6px;
+  border:1px solid #374151;
+  background:#0f172a;
+  color:#e5e7eb;
+  width:80px;
+  text-align:center;
+}
+
+.point-input::-webkit-inner-spin-button,
+.point-input::-webkit-outer-spin-button{
+  -webkit-appearance:none;
+  margin:0;
+}
+
+@media (max-width:760px){
+  .ca-toolbar,.ca-body{width:100%;max-width:100%;padding:0 12px}
+  .ca-input{min-width:160px;flex:1}
+}

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.lolland.dao.AdminDao" >
+
+<insert id="insertAuctionMain" parameterType="map" useGeneratedKeys="true" keyProperty="SEQ" keyColumn="SEQ">
+  INSERT INTO AUC_MAIN (
+	                     TITLE
+	                   , REG_DT
+	                   , RANDOMCODE
+	                   , A_STATUS
+	                   , USE_YN
+	                   )
+                VALUES (
+				         #{auctionName}
+					   , NOW()
+					   , #{randomCode}
+					   , 'WAIT'
+					   , 'Y'
+					   )
+</insert>
+  
+<insert id="insAuctionMember">
+  INSERT INTO AUC_MEMBER (
+	                       AUC_SEQ
+	                     , NO
+	                     , NICK
+	                     , TIER
+	                     , MROLE
+	                     , SROLE
+	                     , LEADERFLG
+	                     , POINT
+	                     )
+                  VALUES (
+					       #{AUC_SEQ}
+					     , #{NO}
+					     , #{NICK}
+					     , #{TIER}
+					     , #{MROLE}
+					     , #{SROLE}
+					     , #{LEADERFLG}
+					     , #{POINT}
+					     )
+</insert>
+  
+<select id="getAucMainList" resultType="hashmap">
+  SELECT M.SEQ AS id, M.TITLE AS title,
+         (SELECT COUNT(*) FROM AUC_MEMBER X WHERE X.AUC_SEQ=M.SEQ) AS participantCount,
+         M.A_STATUS AS status,
+         DATE_FORMAT(M.REG_DT,'%Y-%m-%d %H:%i') AS regDt
+  FROM AUC_MAIN M
+  WHERE M.USE_YN='Y'
+    <if test="query != null and query != ''">
+      AND M.TITLE LIKE CONCAT('%',#{query},'%')
+    </if>
+  ORDER BY M.REG_DT DESC, M.SEQ DESC
+  LIMIT #{size} OFFSET #{offset}
+</select>
+
+<select id="countAucMainList" resultType="int">
+  SELECT COUNT(*) FROM AUC_MAIN M
+  WHERE M.USE_YN='Y'
+    <if test="query != null and query != ''">
+      AND M.TITLE LIKE CONCAT('%',#{query},'%')
+    </if>
+</select>
+
+<select id="getAucMainData" parameterType="long" resultType="hashmap">
+  SELECT M.SEQ AS id, M.TITLE AS title, M.A_STATUS AS status,
+         DATE_FORMAT(M.REG_DT,'%Y-%m-%d %H:%i') AS regDt,
+         M.RANDOMCODE AS randomCode,
+         (SELECT COUNT(*) FROM AUC_MEMBER X WHERE X.AUC_SEQ=M.SEQ) AS participantCount
+  FROM AUC_MAIN M
+  WHERE M.SEQ=#{id} AND M.USE_YN='Y'
+  LIMIT 1
+</select>
+
+<select id="getAuctionMembers" resultType="hashmap">
+  SELECT A.NO AS `order`, A.NICK AS nickname, A.TIER AS tier,
+         A.MROLE AS mainPos, A.SROLE AS subPos, A.POINT AS point,
+         CASE WHEN A.LEADERFLG='Y' THEN 1 ELSE 0 END AS leader
+  FROM AUC_MEMBER A
+  WHERE A.AUC_SEQ=#{id}
+  ORDER BY A.NO ASC, A.SEQ ASC
+  LIMIT #{size} OFFSET #{offset}
+</select>
+
+<select id="countAuctionMembers" resultType="int">
+  SELECT COUNT(*) FROM AUC_MEMBER WHERE AUC_SEQ=#{id}
+</select>
+
+  
+</mapper>

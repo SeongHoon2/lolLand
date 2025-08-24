@@ -1,0 +1,187 @@
+package kr.lolland.controller;
+
+import java.io.FileInputStream;
+import java.security.SecureRandom;
+import java.text.Collator;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.sheets.v4.Sheets;
+import com.google.api.services.sheets.v4.SheetsScopes;
+import com.google.api.services.sheets.v4.model.ValueRange;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+
+import kr.lolland.service.AdminService;
+
+@Controller
+public class adminController {
+
+    @Autowired
+    private AdminService adminService;
+    
+    @PostMapping("/syncAuctionMembers")
+    @ResponseBody
+    public Map<String,Object> syncAuctionMembers() {
+        Map<String,Object> res = new HashMap<>();
+        try {
+            String keyPath;
+            String osName = System.getProperty("os.name").toLowerCase();
+            if (osName.contains("win")) {
+                keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";
+            } else {
+                keyPath = "/opt/etc/keys/lolLandKey.json";
+            }
+
+            NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+            JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+            GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(keyPath)).createScoped(Collections.singletonList(SheetsScopes.SPREADSHEETS));
+            Sheets service = new Sheets.Builder(httpTransport, jsonFactory, new HttpCredentialsAdapter(credentials)).setApplicationName("LolLand Auction System").build();
+
+            String spreadsheetId = "1P-I6ZnQbkjaJ2yl7zaGnv8A4t9luP3fQLFnRDuD4wQE";
+            String range = "Auction!B3:G42";
+            ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
+            List<List<Object>> values = response.getValues();
+
+            List<Map<String,Object>> members = new ArrayList<>();
+            if (values != null) {
+                for (List<Object> row : values) {
+                    if (row == null || row.isEmpty()) continue;
+                    Map<String,Object> m = new HashMap<>();
+                    m.put("NO",        row.size()>0 ? String.valueOf(row.get(0)) : "");
+                    m.put("NICK",      row.size()>1 ? String.valueOf(row.get(1)) : "");
+                    m.put("TIER",      row.size()>2 ? String.valueOf(row.get(2)) : "");
+                    m.put("MROLE",     row.size()>3 ? String.valueOf(row.get(3)) : "");
+                    m.put("SROLE",     row.size()>4 ? String.valueOf(row.get(4)) : "");
+                    m.put("POINT", "");
+                    String leaderRaw  = row.size()>5 ? String.valueOf(row.get(5)) : "";
+                    m.put("LEADERFLG", "Y".equalsIgnoreCase(leaderRaw) ? "Y" : "N");
+                    if (!String.valueOf(m.get("NO")).isEmpty()
+                            && !String.valueOf(m.get("NICK")).isEmpty()
+                            && !String.valueOf(m.get("TIER")).isEmpty()
+                            && !String.valueOf(m.get("MROLE")).isEmpty()) {
+                        members.add(m);
+                    }
+                }
+            }
+
+            Collator coll = Collator.getInstance(Locale.KOREAN);
+            coll.setStrength(Collator.PRIMARY);
+            members.sort((a, b) -> {
+                String la = String.valueOf(a.getOrDefault("LEADERFLG","N"));
+                String lb = String.valueOf(b.getOrDefault("LEADERFLG","N"));
+                if (!la.equals(lb)) return "Y".equals(lb) ? 1 : -1;
+                String na = String.valueOf(a.getOrDefault("NICK",""));
+                String nb = String.valueOf(b.getOrDefault("NICK",""));
+                return coll.compare(na, nb);
+            });
+
+            for (int i = 0; i < members.size(); i++) {
+                Object org = members.get(i).get("NO");
+                members.get(i).put("ORG_NO", org == null ? "" : String.valueOf(org));
+                members.get(i).put("NO", String.valueOf(i + 1));
+            }
+
+            res.put("status", true);
+            res.put("members", members);
+            res.put("syncedAt", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
+        } catch (Exception e) {
+            res.put("status", false);
+        }
+        return res;
+    }
+
+    @PostMapping("/saveAuctionMembers")
+    @ResponseBody
+    public Map<String,Object> saveAuctionMembers(@RequestBody Map<String,Object> body) {
+        Map<String,Object> res = new HashMap<>();
+        try {
+            @SuppressWarnings("unchecked")
+            List<Map<String,Object>> members = (List<Map<String,Object>>) body.get("members");
+            if (members == null) members = Collections.emptyList();
+
+            String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            SecureRandom rand = new SecureRandom();
+            StringBuilder sb = new StringBuilder(8);
+            for (int i = 0; i < 8; i++) {
+                sb.append(chars.charAt(rand.nextInt(chars.length())));
+            }
+            String randomCode = sb.toString();
+            body.put("randomCode", randomCode);
+
+            adminService.insertAuctionMain(body);
+
+            Object seq = body.get("SEQ");
+            String aucSeqStr = String.valueOf(seq);
+
+            for (Map<String,Object> row : members) {
+                Map<String,Object> params = new HashMap<>();
+                params.put("AUC_SEQ",   aucSeqStr);
+                params.put("NO",        String.valueOf(row.getOrDefault("NO","")));
+                params.put("NICK",      String.valueOf(row.getOrDefault("NICK","")));
+                params.put("TIER",      String.valueOf(row.getOrDefault("TIER","")));
+                params.put("MROLE",     String.valueOf(row.getOrDefault("MROLE","")));
+                params.put("SROLE",     String.valueOf(row.getOrDefault("SROLE","")));
+                params.put("LEADERFLG", String.valueOf(row.getOrDefault("LEADERFLG","N")));
+
+                String leader = String.valueOf(row.getOrDefault("LEADERFLG","N"));
+                String p;
+                if ("Y".equalsIgnoreCase(leader)) {
+                    p = String.valueOf(row.getOrDefault("POINT","1000"));
+                    if (p == null || !p.matches("^-?\\d+$")) p = "1000";
+                } else {
+                    p = "0";
+                }
+                params.put("POINT", p);
+
+                if (!params.get("NO").toString().isEmpty()
+                        && !params.get("NICK").toString().isEmpty()
+                        && !params.get("TIER").toString().isEmpty()
+                        && !params.get("MROLE").toString().isEmpty()) {
+                    adminService.insAuctionMember(params);
+                }
+            }
+            res.put("ok", true);
+        } catch (Exception e) {
+            res.put("ok", false);
+        }
+        return res;
+    }
+
+    @GetMapping("/getAucMainList")
+    @ResponseBody
+    public Map<String,Object> getAucMainList(@RequestParam(defaultValue="") String query,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="10") int size) {
+        return adminService.getAucMainList(query, page, size);
+    }
+
+    @GetMapping("/getAucMainData/{id}")
+    @ResponseBody
+    public Map<String,Object> getAucMainData(@PathVariable long id){
+        return adminService.getAucMainData(id);
+    }
+
+    @GetMapping("/getAuctionMembers/{id}")
+    @ResponseBody
+    public Map<String,Object> getAuctionMembers(@PathVariable long id,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="10") int size){
+        return adminService.getAuctionMembers(id,page,size);
+    }
+
+
+}
