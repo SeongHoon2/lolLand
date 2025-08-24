@@ -3,21 +3,12 @@ package kr.lolland.controller;
 import java.io.FileInputStream;
 import java.security.SecureRandom;
 import java.text.Collator;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.Locale;
-import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -36,7 +27,7 @@ public class adminController {
 
     @Autowired
     private AdminService adminService;
-    
+
     @PostMapping("/syncAuctionMembers")
     @ResponseBody
     public Map<String,Object> syncAuctionMembers() {
@@ -45,15 +36,18 @@ public class adminController {
             String keyPath;
             String osName = System.getProperty("os.name").toLowerCase();
             if (osName.contains("win")) {
-                keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";
+            	keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";  // main
+            	//keyPath = "C:/Users/znfmf/Downloads/test/lolLandKey.json"; // sub
+            	//keyPath = "C:/Users/Users/Desktop/test/lolLandKey.json"; // work
             } else {
                 keyPath = "/opt/etc/keys/lolLandKey.json";
             }
-
             NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-            GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(keyPath)).createScoped(Collections.singletonList(SheetsScopes.SPREADSHEETS));
-            Sheets service = new Sheets.Builder(httpTransport, jsonFactory, new HttpCredentialsAdapter(credentials)).setApplicationName("LolLand Auction System").build();
+            GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(keyPath))
+                    .createScoped(Collections.singletonList(SheetsScopes.SPREADSHEETS));
+            Sheets service = new Sheets.Builder(httpTransport, jsonFactory, new HttpCredentialsAdapter(credentials))
+                    .setApplicationName("LolLand Auction System").build();
 
             String spreadsheetId = "1P-I6ZnQbkjaJ2yl7zaGnv8A4t9luP3fQLFnRDuD4wQE";
             String range = "Auction!B3:G42";
@@ -82,12 +76,36 @@ public class adminController {
                 }
             }
 
+            Map<String, Integer> tierOrder = new HashMap<>();
+            tierOrder.put("C", 1);
+            tierOrder.put("GM", 2);
+            tierOrder.put("M", 3);
+            tierOrder.put("D", 4);
+            tierOrder.put("E", 5);
+            tierOrder.put("P", 6);
+            tierOrder.put("G", 7);
+            tierOrder.put("S", 8);
+            tierOrder.put("B", 9);
+            tierOrder.put("I", 10);
+
             Collator coll = Collator.getInstance(Locale.KOREAN);
             coll.setStrength(Collator.PRIMARY);
+
             members.sort((a, b) -> {
                 String la = String.valueOf(a.getOrDefault("LEADERFLG","N"));
                 String lb = String.valueOf(b.getOrDefault("LEADERFLG","N"));
-                if (!la.equals(lb)) return "Y".equals(lb) ? 1 : -1;
+                if (!la.equals(lb)) {
+                    return "Y".equals(lb) ? 1 : -1;
+                }
+
+                String ta = String.valueOf(a.getOrDefault("TIER","Z"));
+                String tb = String.valueOf(b.getOrDefault("TIER","Z"));
+                int ra = tierOrder.getOrDefault(ta, Integer.MAX_VALUE);
+                int rb = tierOrder.getOrDefault(tb, Integer.MAX_VALUE);
+                if (ra != rb) {
+                    return Integer.compare(ra, rb);
+                }
+
                 String na = String.valueOf(a.getOrDefault("NICK",""));
                 String nb = String.valueOf(b.getOrDefault("NICK",""));
                 return coll.compare(na, nb);
@@ -114,15 +132,12 @@ public class adminController {
         Map<String,Object> res = new HashMap<>();
         try {
             @SuppressWarnings("unchecked")
-            List<Map<String,Object>> members = (List<Map<String,Object>>) body.get("members");
-            if (members == null) members = Collections.emptyList();
+            List<Map<String,Object>> members = (List<Map<String,Object>>) body.getOrDefault("members", Collections.emptyList());
 
             String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
             SecureRandom rand = new SecureRandom();
             StringBuilder sb = new StringBuilder(8);
-            for (int i = 0; i < 8; i++) {
-                sb.append(chars.charAt(rand.nextInt(chars.length())));
-            }
+            for (int i = 0; i < 8; i++) sb.append(chars.charAt(rand.nextInt(chars.length())));
             String randomCode = sb.toString();
             body.put("randomCode", randomCode);
 
@@ -142,13 +157,8 @@ public class adminController {
                 params.put("LEADERFLG", String.valueOf(row.getOrDefault("LEADERFLG","N")));
 
                 String leader = String.valueOf(row.getOrDefault("LEADERFLG","N"));
-                String p;
-                if ("Y".equalsIgnoreCase(leader)) {
-                    p = String.valueOf(row.getOrDefault("POINT","1000"));
-                    if (p == null || !p.matches("^-?\\d+$")) p = "1000";
-                } else {
-                    p = "0";
-                }
+                String p = "Y".equalsIgnoreCase(leader) ? String.valueOf(row.getOrDefault("POINT","1000")) : "0";
+                if (p == null || !p.matches("^-?\\d+$")) p = "1000";
                 params.put("POINT", p);
 
                 if (!params.get("NO").toString().isEmpty()
@@ -180,8 +190,6 @@ public class adminController {
     @GetMapping("/getAuctionMembers/{id}")
     @ResponseBody
     public Map<String,Object> getAuctionMembers(@PathVariable long id,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="10") int size){
-        return adminService.getAuctionMembers(id,page,size);
+        return adminService.getAuctionMembers(id, page, size);
     }
-
-
 }

@@ -144,7 +144,7 @@ function buildPostSyncToolbar(res){
     + '</span>'
   );
   $('#toolbarRight').html(
-    '<input type="text" id="auctionName" maxLength="50" class="ca-input" placeholder="경매명 작성">'
+    '<input type="text" id="auctionName" maxLength="25" class="ca-input" placeholder="경매명 작성">'
     + '<button id="btnSave" class="btn btn-blue">저장</button>'
     + '<button id="btnReset" class="btn btn-gray">초기화</button>'
   );

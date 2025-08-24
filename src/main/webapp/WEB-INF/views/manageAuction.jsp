@@ -4,150 +4,243 @@
 <jsp:include page="/WEB-INF/views/layout/header.jsp"/>
 
 <div class="container">
-  <div class="am-toolbar">
-    <div class="am-toolbar-left">
-      <input type="text" id="searchQuery" class="am-input" placeholder="제목 검색">
-      <button id="btnSearch" class="am-btn am-btn-blue">검색</button>
-    </div>
-  </div>
+  <div class="am-scope">
 
-  <div class="auction-manage-page">
-    <aside class="am-left">
-      <ul class="am-list" id="auctionList">
-        <li class="am-empty">검색해 보세요.</li>
-      </ul>
-      <div class="am-pagination" id="auctionPaging"></div>
-    </aside>
-
-    <section class="am-right" id="detailPanel">
-      <div class="am-placeholder">좌측에서 경매를 선택하세요.</div>
-      <div class="am-detail hidden">
-        <header class="am-detail-head">
-          <h2 id="dTitle"></h2>
-          <span id="dStatus" class="am-status"></span>
-        </header>
-        <div class="am-table-wrap">
-          <table class="am-table">
-            <thead>
-              <tr>
-                <th>순번</th><th>닉네임</th><th>티어</th>
-                <th>주포지션</th><th>부포지션</th>
-                <th>포인트</th><th>팀장여부</th>
-              </tr>
-            </thead>
-            <tbody id="pTableBody"></tbody>
-          </table>
+    <div class="auction-manage-page">
+      <div class="am-left-col">
+        <div class="am-searchbar">
+          <input type="text" id="searchQuery" class="am-input" placeholder="제목 검색">
+          <button type="button" id="btnSearch" class="am-btn am-btn-blue">검색</button>
         </div>
-        <div class="am-pagination" id="memberPaging"></div>
+
+        <aside class="am-left">
+          <ul class="am-list" id="auctionList">
+            <li class="am-item am-empty-row"></li>
+            <li class="am-item am-empty-row"></li>
+            <li class="am-item am-empty-row"></li>
+            <li class="am-item am-empty-row"></li>
+            <li class="am-item am-empty-row"></li>
+            <li class="am-item am-empty-row"></li>
+            <li class="am-item am-empty-row"></li>
+            <li class="am-item am-empty-row"></li>
+          </ul>
+          <div class="am-pagination" id="auctionPaging"></div>
+        </aside>
       </div>
-    </section>
+
+      <section class="am-right" id="detailPanel">
+        <div class="am-placeholder">좌측에서 경매를 선택하세요.</div>
+
+        <div class="am-detail hidden">
+          <header class="am-detail-head">
+            <h2 id="dTitle"></h2>
+            <div class="am-statusline">
+              <button type="button" id="dAction" class="am-meta-btn hidden"></button>
+              <span id="dRand" class="am-rand-text"></span>
+            </div>
+          </header>
+
+          <div class="am-table-wrap">
+            <table class="am-table">
+              <colgroup>
+                <col style="width:7%">
+                <col style="width:45%">
+                <col style="width:10%">
+                <col style="width:10%">
+                <col style="width:10%">
+                <col style="width:10%">
+                <col style="width:8%">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>순번</th>
+                  <th>닉네임</th>
+                  <th>티어</th>
+                  <th>주포지션</th>
+                  <th>부포지션</th>
+                  <th>포인트</th>
+                  <th>팀장</th>
+                </tr>
+              </thead>
+              <tbody id="pTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="am-pagination" id="memberPaging"></div>
+        </div>
+      </section>
+    </div>
+
   </div>
 </div>
 
 <jsp:include page="/WEB-INF/views/layout/footer.jsp"/>
+
 <link rel="stylesheet" href="<c:url value='/resources/css/manageAuction.css'/>">
 
 <script>
 $(function(){
+  var AUC_PAGE_SIZE = 8;
+  var MEM_PAGE_SIZE = 10;
+
   var $list   = $('#auctionList');
   var $tbody  = $('#pTableBody');
   var $panel  = $('#detailPanel');
   var $detail = $panel.find('.am-detail');
   var $ph     = $panel.find('.am-placeholder');
   var $title  = $('#dTitle');
-  var $status = $('#dStatus');
+  var $rand   = $('#dRand');
+  var $action = $('#dAction');
+  var $btnSearch = $('#btnSearch');
+  var $q = $('#searchQuery');
 
-  var currentAucId = null;
-
-  $('#btnSearch').on('click', function(){
+  $btnSearch.on('click', function(){
+    if ($btnSearch.prop('disabled')) return;
     loadAuctionList(1);
   });
 
+  $q.on('keydown', function(e){
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      $btnSearch.click();
+    }
+  });
+
+  loadAuctionList(1);
+
   function loadAuctionList(page){
-    var q = $('#searchQuery').val() || '';
-    $.getJSON('/getAucMainList', { query:q, page:page, size:10 }, function(res){
-      renderAuctionList(res.list);
-      renderPaging('#auctionPaging', res.page, loadAuctionList);
-    });
+    var q = $q.val() || '';
+    $btnSearch.prop('disabled', true).addClass('is-loading');
+    $.getJSON('/getAucMainList', { query:q, page:page, size:AUC_PAGE_SIZE })
+      .done(function(res){
+        renderAuctionList(res && res.list ? res.list : []);
+        renderPaging('#auctionPaging', res && res.page ? res.page : {number:1,totalPages:1}, function(nextPage){
+          loadAuctionList(nextPage);
+        });
+      })
+      .fail(function(){
+        alert('검색에 실패했습니다.');
+      })
+      .always(function(){
+        $btnSearch.prop('disabled', false).removeClass('is-loading');
+      });
   }
 
   function renderAuctionList(rows){
-    if(!rows || rows.length===0){
-      $list.html('<li class="am-empty">결과 없음</li>');
-      return;
-    }
     var html='';
-    $.each(rows, function(i,a){
-      html += '<li class="am-item" data-id="'+esc(a.id)+'">'
-           +    '<div class="am-title">'+esc(a.title)+'</div>'
-           +    '<div class="am-meta">'
-           +      '<span>참여자 '+esc(a.participantCount)+'</span>'
-           +      '<span class="am-status '+esc(a.status)+'">'+esc(a.status)+'</span>'
-           +    '</div>'
-           +  '</li>';
-    });
+    for (var i=0;i<AUC_PAGE_SIZE;i++){
+      if(rows[i]){
+        var a = rows[i];
+        var st = esc(a.status);
+        if(st=="SYNC"){ st = "경매 시작 대기중"; }
+        else if(st=="ING"){ st = "경매 진행중"; }
+        else if(st=="END"){ st = "경매 종료"; }
+        html += '<li class="am-item" data-id="'+esc(a.id)+'">'
+             +    '<div class="am-title">'+esc(a.title)+'</div>'
+             +    '<div class="am-meta">'
+             +      '<span class="am-status '+esc(a.status)+'">'+st+'</span>'
+             +    '</div>'
+             +  '</li>';
+      } else {
+        html += '<li class="am-item am-empty-row"></li>';
+      }
+    }
     $list.html(html);
-  }
-
-  function loadMembers(aucId, page){
-    $.getJSON('/getAuctionMembers/'+aucId, { page:page, size:10 }, function(res){
-      renderMembers(res.list);
-      renderPaging('#memberPaging', res.page, function(p){ loadMembers(aucId, p); });
-    });
-  }
-
-  function renderMembers(rows){
-    if(!rows || rows.length===0){
-      $tbody.html('<tr><td colspan="7" class="td-empty">참여자가 없습니다</td></tr>');
-      return;
-    }
-    var html='';
-    $.each(rows, function(i,p){
-      html+='<tr>'
-          + '<td>'+safe(p.order)+'</td>'
-          + '<td>'+safe(p.nickname)+'</td>'
-          + '<td>'+safe(p.tier)+'</td>'
-          + '<td>'+safe(p.mainPos)+'</td>'
-          + '<td>'+safe(p.subPos)+'</td>'
-          + '<td>'+safe(p.point)+'</td>'
-          + '<td>'+(p.leader ? '팀장':'')+'</td>'
-          + '</tr>';
-    });
-    $tbody.html(html);
   }
 
   $list.on('click', '.am-item', function(){
     var id = $(this).data('id');
-    currentAucId = id;
+    if(!id) return;
     $list.find('.am-item.active').removeClass('active');
     $(this).addClass('active');
 
     $.getJSON('/getAucMainData/'+id, function(meta){
-      $title.text(meta.title||'');
-      $status.text(meta.status||'');
+      $title.text(meta && meta.title ? meta.title : '');
+      var statusCode = meta && meta.status ? String(meta.status).toUpperCase() : '';
+      var rc = meta && (meta.randomCode || meta.RandomCode || meta.random_code || meta.code);
+      rc = (rc == null ? '' : String(rc));
+      $rand.text('Code : ' + esc(rc || ''));
+
+      if (statusCode === 'SYNC'){
+        $action.text('경매 시작').removeClass('hidden').attr('data-action','start');
+      } else if (statusCode === 'ING'){
+        $action.text('경매 강제 종료').removeClass('hidden').attr('data-action','force-end');
+      } else {
+        $action.addClass('hidden').removeAttr('data-action');
+      }
+
       $ph.addClass('hidden');
-      $detail.removeClass('hidden');
-      loadMembers(id,1);
+      $detail.removeClass('hidden').addClass('shown');
+      loadMembers(id, 1);
     });
   });
 
+  function loadMembers(aucId, page){
+    $.getJSON('/getAuctionMembers/'+aucId, { page:page, size:MEM_PAGE_SIZE }, function(res){
+      renderMembers(res && res.list ? res.list : []);
+      renderPaging('#memberPaging', res && res.page ? res.page : {number:1,totalPages:1}, function(nextPage){
+        loadMembers(aucId, nextPage);
+      });
+    });
+  }
+
+  function renderMembers(rows){
+    var html='';
+    for (var i=0; i<MEM_PAGE_SIZE; i++){
+      var p = rows[i];
+      if (p){
+        var isLeader = !!p.leader;
+        var pointTxt = isLeader ? safe(p.point) : '';
+        var leaderTxt = isLeader ? '★' : '';
+        html+='<tr>'
+            + '<td>'+safe(p.order)+'</td>'
+            + '<td class="td-left">'+safe(p.nickname)+'</td>'
+            + '<td>'+safe(p.tier)+'</td>'
+            + '<td>'+safe(p.mainPos)+'</td>'
+            + '<td>'+safe(p.subPos)+'</td>'
+            + '<td>'+pointTxt+'</td>'
+            + '<td>'+leaderTxt+'</td>'
+            + '</tr>';
+      } else {
+        html+='<tr class="am-empty-row" aria-hidden="true">'
+            +   '<td>&nbsp;</td>'
+            +   '<td class="td-left">&nbsp;</td>'
+            +   '<td>&nbsp;</td>'
+            +   '<td>&nbsp;</td>'
+            +   '<td>&nbsp;</td>'
+            +   '<td>&nbsp;</td>'
+            +   '<td>&nbsp;</td>'
+            + '</tr>';
+      }
+    }
+    $tbody.html(html);
+  }
+
   function renderPaging(selector, page, callback){
     var $p = $(selector);
-    if(!page || page.totalPages<=1){ $p.html(''); return; }
-    var html='';
-    if(page.number>1) html+='<a href="#" data-p="'+(page.number-1)+'">이전</a>';
-    html+=' <span>'+page.number+' / '+page.totalPages+'</span> ';
-    if(page.number<page.totalPages) html+='<a href="#" data-p="'+(page.number+1)+'">다음</a>';
+    var n = (page && page.number) ? page.number : 1;
+    var t = (page && page.totalPages) ? page.totalPages : 1;
+
+    var prevDis = (n <= 1) ? ' disabled' : '';
+    var nextDis = (n >= t) ? ' disabled' : '';
+
+    var html = ''
+      + '<a href="#" class="am-page-btn am-prev'+prevDis+'" data-p="'+(Math.max(n-1,1))+'" aria-label="이전">‹</a>'
+      + '<span class="am-page-info"><span class="am-page-num">'+n+'</span>/<span class="am-page-total">'+t+'</span></span>'
+      + '<a href="#" class="am-page-btn am-next'+nextDis+'" data-p="'+(Math.min(n+1,t))+'" aria-label="다음">›</a>';
+
     $p.html(html);
-    $p.find('a').click(function(e){
+
+    $p.find('a.am-page-btn').off('click').on('click', function(e){
       e.preventDefault();
-      callback($(this).data('p'));
+      if($(this).hasClass('disabled')) return;
+      var nextPage = parseInt($(this).attr('data-p'), 10);
+      if(isNaN(nextPage) || nextPage < 1 || nextPage > t) return;
+      callback(nextPage);
     });
   }
 
   function esc(v){ return v==null?'':String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function safe(v){ return v==null?'':esc(v); }
-
-  loadAuctionList(1);
 });
 </script>
