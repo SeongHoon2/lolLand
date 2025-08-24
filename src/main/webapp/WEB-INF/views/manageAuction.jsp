@@ -131,14 +131,16 @@ $(function(){
     for (var i=0;i<AUC_PAGE_SIZE;i++){
       if(rows[i]){
         var a = rows[i];
-        var st = esc(a.status);
-        if(st=="SYNC"){ st = "경매 시작 대기중"; }
-        else if(st=="ING"){ st = "경매 진행중"; }
-        else if(st=="END"){ st = "경매 종료"; }
+        var stCode = String(a.status || '').toUpperCase();
+        var stTxt = stCode;
+        if(stCode === 'SYNC'){ stTxt = '로비 오픈 대기중'; }
+        else if(stCode === 'WAIT'){ stTxt = '경매 시작 대기중'; }
+        else if(stCode === 'ING'){ stTxt = '경매 진행중'; }
+        else if(stCode === 'END'){ stTxt = '경매 종료'; }
         html += '<li class="am-item" data-id="'+esc(a.id)+'">'
              +    '<div class="am-title">'+esc(a.title)+'</div>'
              +    '<div class="am-meta">'
-             +      '<span class="am-status '+esc(a.status)+'">'+st+'</span>'
+             +      '<span class="am-status '+esc(stCode)+'">'+esc(stTxt)+'</span>'
              +    '</div>'
              +  '</li>';
       } else {
@@ -162,8 +164,8 @@ $(function(){
       $rand.text('Code : ' + esc(rc || ''));
 
       if (statusCode === 'SYNC'){
-        $action.text('경매 시작').removeClass('hidden').attr('data-action','start');
-      } else if (statusCode === 'ING'){
+        $action.text('로비 오픈').removeClass('hidden').attr('data-action','open-lobby');
+      } else if (statusCode === 'WAIT' || statusCode === 'ING'){
         $action.text('경매 강제 종료').removeClass('hidden').attr('data-action','force-end');
       } else {
         $action.addClass('hidden').removeAttr('data-action');

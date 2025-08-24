@@ -82,7 +82,7 @@ $(document).ready(function(){
       $('#auctionName').focus();
       return;
     }
-    if(!confirm('현재 연동된 데이터를 저장하시겠습니까?')) return;
+    if(!confirm('경매 데이터를 생성하시겠습니까?')) return;
 
     $('#memberTbody tr').each(function(idx){
       var isLeader = (currentRows[idx] && currentRows[idx].LEADERFLG === 'Y');
@@ -102,8 +102,8 @@ $(document).ready(function(){
       contentType:'application/json; charset=UTF-8',
       data: JSON.stringify({members: currentRows, auctionName: aucName})
     }).done(function(res){
-      if(res && res.ok){ alert('저장 완료'); location.reload();}
-      else{ alert((res && res.message) ? res.message : '저장 실패'); }
+      if(res && res.ok){ alert('생성 완료'); location.reload();}
+      else{ alert((res && res.message) ? res.message : '생성 실패'); }
     }).fail(function(){
       alert('서버 오류');
     }).always(function(){ 
@@ -145,7 +145,7 @@ function buildPostSyncToolbar(res){
   );
   $('#toolbarRight').html(
     '<input type="text" id="auctionName" maxLength="25" class="ca-input" placeholder="경매명 작성">'
-    + '<button id="btnSave" class="btn btn-blue">저장</button>'
+    + '<button id="btnSave" class="btn btn-blue">생성</button>'
     + '<button id="btnReset" class="btn btn-gray">초기화</button>'
   );
 }
