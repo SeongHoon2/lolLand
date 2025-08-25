@@ -86,6 +86,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
+<!-- 컨텍스트 패스 (항상 끝에 / 포함) -->
+<script>var CTX = "<c:url value='/'/>";</script>
+
 <script>
 (function($){
   "use strict";
@@ -110,7 +113,6 @@
   function renderLobby(data){
     var leaders = (data && data.leaders) || [];
     $("#leaderList").html(leaders.map(function(m){
-      // 온라인일 때만 ✅ 표시
       var showReady = (m.ONLINE_YN==="Y" && m.READY_YN==="Y");
       var ready = showReady ? " ✅" : "";
       var stateClass = (m.ONLINE_YN==="Y") ? "online" : "offline";
@@ -118,7 +120,6 @@
       return "<li><span>"+m.NICK+"</span><span class='"+stateClass+"'>"+stateText+ready+"</span></li>";
     }).join(""));
 
-    // ---- 내 버튼 상태 갱신 (토글 UI) ----
     var me = leaders.find(function(m){ return m && m.NICK === G.nick; });
     var isOnline = !!(me && me.ONLINE_YN==="Y");
     var isReady  = !!(me && me.READY_YN==="Y" && isOnline);
@@ -128,8 +129,8 @@
       .text(isReady ? "완료 해제" : "준비 완료")
       .data("ready", isReady)
       .attr("aria-pressed", isReady ? "true" : "false")
-      .toggleClass("outline", isReady) // 스타일 선택사항
-      .prop("disabled", !isOnline)     // 오프라인 시 스스로 조작 방지
+      .toggleClass("outline", isReady)
+      .prop("disabled", !isOnline)
       .attr("title", isOnline ? "" : "오프라인 상태에서는 변경할 수 없습니다.");
   }
 
@@ -146,25 +147,23 @@
     RECONNECT_TIMER = setTimeout(function(){
       RECONNECT_TIMER = null;
       RECONNECT_WAIT = Math.min(RECONNECT_WAIT*1.6, MAX_WAIT);
-      connectStomp(); // 재연결 시도
+      connectStomp();
     }, RECONNECT_WAIT);
   }
 
   function connectStomp(){
     if(STOMP && STOMP.connected) { subscribeLobby(); return; }
-    var sock = new SockJS("/ws-auction");
+    var sock = new SockJS(CTX + "ws-auction");
     STOMP = Stomp.over(sock);
     STOMP.debug = null;
 
     sock.onclose = function(){
-      // 끊겼을 때 자동 재연결 (대기실/경매중 화면일 때만)
       if(["STEP2","STEP3"].includes($("#auctionApp").attr("data-state"))){
         scheduleReconnect();
       }
     };
 
     STOMP.connect({}, function(){
-      // 연결 성공 시 backoff 초기화
       RECONNECT_WAIT = 300;
       if(RECONNECT_TIMER){ clearTimeout(RECONNECT_TIMER); RECONNECT_TIMER=null; }
       subscribeLobby();
@@ -181,18 +180,17 @@
     STOMP=null; STOMP_SUB=null;
   }
 
-  // 전송 전에 반드시 연결 보장
   function ensureConnectedThen(fn){
     if (STOMP && STOMP.connected) { fn(); return; }
     connectStomp();
     var tries = 0, timer = setInterval(function(){
       if (STOMP && STOMP.connected){ clearInterval(timer); fn(); }
-      else if (++tries > 50){ clearInterval(timer); alert("서버 연결 실패"); } // ~5초
+      else if (++tries > 50){ clearInterval(timer); alert("서버 연결 실패"); }
     }, 100);
   }
 
   function afterJoin(code){
-    $.getJSON("/auction/"+encodeURIComponent(code)+"/overview").done(function(snap){
+    $.getJSON(CTX + "auction/"+encodeURIComponent(code)+"/overview").done(function(snap){
       const data = snap && snap.data || {};
       renderLobby(data);
       const st = data.status || "WAIT";
@@ -211,7 +209,7 @@
     if(!code){ alert("입장 코드를 입력하세요."); return; }
     if(!nick){ alert("닉네임을 입력하세요."); return; }
     $.ajax({
-      url: "/auction/"+encodeURIComponent(code)+"/lobby/join",
+      url: CTX + "auction/"+encodeURIComponent(code)+"/lobby/join",
       type: "POST",
       contentType: "application/json; charset=UTF-8",
       data: JSON.stringify({ code: code, nick: nick })
@@ -224,28 +222,22 @@
     }).fail(function(xhr){ alert("서버 오류 발생" + (xhr && xhr.status ? " ("+xhr.status+")" : "")); });
   });
 
-  // ---- 준비 토글: ready/unready 자동 선택 ----
   $("#btnReady").on("click", function(){
     if(!G.aucSeq){ alert("세션 없음"); return; }
     var isReady = $("#btnReady").data("ready") === true;
     var dest = isReady
       ? ("/app/lobby."+G.aucSeq+".unready")
       : ("/app/lobby."+G.aucSeq+".ready");
-
     ensureConnectedThen(function(){
-      try{
-        STOMP.send(dest, {}, "");
-        // 낙관적 UI 갱신은 서버 브로드캐스트가 곧 올 것이므로 생략(깜빡임 방지)
-      }catch(e){
-        alert("전송 실패");
-      }
+      try { STOMP.send(dest, {}, ""); }
+      catch(e){ alert("전송 실패"); }
     });
   });
 
   $("#btnExit").on("click", function(){
     if(!G.code){ setStep("STEP1"); return; }
     $.ajax({
-      url: "/auction/"+encodeURIComponent(G.code)+"/lobby/exit",
+      url: CTX + "auction/"+encodeURIComponent(G.code)+"/lobby/exit",
       type: "POST",
       contentType: "application/json; charset=UTF-8",
       data: JSON.stringify({})
@@ -259,7 +251,6 @@
     }).fail(function(){ alert("대기실 나가기 실패"); });
   });
 
-  // 경매 시작
   $("#btnStart").on("click", function(){
     if(!G.aucSeq){ alert("세션 없음"); return; }
     ensureConnectedThen(function(){
@@ -269,16 +260,14 @@
   });
 
   function tryRestore(){
-    // 새로고침 직후면 즉시 캐시로 복원 우선
     var isReload = false;
     try { isReload = sessionStorage.getItem("auc.reloading")==="1"; } catch(e){}
     let cached=null; try{ cached = JSON.parse(sessionStorage.getItem("auc.last")||"null"); }catch(e){}
 
     if(isReload && cached && cached.code && cached.nick){
-      // 플래그 제거하고 즉시 재입장
       try{ sessionStorage.removeItem("auc.reloading"); }catch(e){}
       $.ajax({
-        url: "/auction/"+encodeURIComponent(cached.code)+"/lobby/join",
+        url: CTX + "auction/"+encodeURIComponent(cached.code)+"/lobby/join",
         type: "POST",
         contentType: "application/json; charset=UTF-8",
         data: JSON.stringify({ code: cached.code, nick: cached.nick })
@@ -289,8 +278,7 @@
       return;
     }
 
-    // 평소 복원 루트 (/auction/restore 있으면 사용)
-    $.getJSON("/auction/restore").done(function(res){
+    $.getJSON(CTX + "auction/restore").done(function(res){
       const data = res && res.data;
       if (res && res.success===true && data){
         renderLobby(data);
@@ -299,7 +287,7 @@
         connectStomp();
       } else if(cached && cached.code && cached.nick){
         $.ajax({
-          url: "/auction/"+encodeURIComponent(cached.code)+"/lobby/join",
+          url: CTX + "auction/"+encodeURIComponent(cached.code)+"/lobby/join",
           type: "POST",
           contentType: "application/json; charset=UTF-8",
           data: JSON.stringify({ code: cached.code, nick: cached.nick })
@@ -313,7 +301,7 @@
     }).fail(function(){
       if(cached && cached.code && cached.nick){
         $.ajax({
-          url: "/auction/"+encodeURIComponent(cached.code)+"/lobby/join",
+          url: CTX + "auction/"+encodeURIComponent(cached.code)+"/lobby/join",
           type: "POST",
           contentType: "application/json; charset=UTF-8",
           data: JSON.stringify({ code: cached.code, nick: cached.nick })
