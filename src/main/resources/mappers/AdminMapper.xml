@@ -7,17 +7,17 @@
 <insert id="insertAuctionMain" parameterType="map" useGeneratedKeys="true" keyProperty="SEQ" keyColumn="SEQ">
   INSERT INTO AUC_MAIN (
                          TITLE
-                       , REG_DT
                        , RANDOMCODE
                        , A_STATUS
                        , USE_YN
+                       , REG_DTM
                        )
                 VALUES (
                          #{auctionName}
-                       , NOW()
                        , #{randomCode}
                        , 'SYNC'
                        , 'Y'
+                       , NOW()
                        )
 </insert>
 
@@ -31,6 +31,7 @@
                          , SROLE
                          , LEADERFLG
                          , POINT
+                         , REG_DTM
                          )
                   VALUES (
                            #{AUC_SEQ}
@@ -41,6 +42,7 @@
                          , #{SROLE}
                          , #{LEADERFLG}
                          , #{POINT}
+                         , NOW()
                          )
 </insert>
 
@@ -49,13 +51,13 @@
     M.SEQ AS id,
     M.TITLE AS title,
     M.A_STATUS AS status,
-    DATE_FORMAT(M.REG_DT, '%Y-%m-%d %H:%i') AS regDt
+    DATE_FORMAT(M.REG_DTM, '%Y-%m-%d %H:%i') AS regDt
   FROM AUC_MAIN M
   WHERE M.USE_YN = 'Y'
     <if test="query != null and query != ''">
       AND M.TITLE LIKE CONCAT('%', #{query}, '%')
     </if>
-  ORDER BY M.REG_DT DESC, M.SEQ DESC
+  ORDER BY M.REG_DTM DESC, M.SEQ DESC
   LIMIT #{offset,jdbcType=INTEGER}, #{size,jdbcType=INTEGER}
 </select>
 
@@ -70,7 +72,7 @@
 
 <select id="getAucMainData" parameterType="long" resultType="hashmap">
   SELECT M.SEQ AS id, M.TITLE AS title, M.A_STATUS AS status,
-         DATE_FORMAT(M.REG_DT,'%Y-%m-%d %H:%i') AS regDt,
+         DATE_FORMAT(M.REG_DTM,'%Y-%m-%d %H:%i') AS regDt,
          M.RANDOMCODE AS randomCode
   FROM AUC_MAIN M
   WHERE M.SEQ=#{id} AND M.USE_YN='Y'
@@ -83,7 +85,7 @@
          CASE WHEN A.LEADERFLG='Y' THEN 1 ELSE 0 END AS leader
   FROM AUC_MEMBER A
   WHERE A.AUC_SEQ=#{id}
-  ORDER BY A.NO ASC, A.SEQ ASC
+  ORDER BY A.NO ASC, A.MEM_SEQ ASC
   LIMIT #{offset,jdbcType=INTEGER}, #{size,jdbcType=INTEGER}
 </select>
 

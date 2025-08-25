@@ -20,7 +20,7 @@ import org.springframework.http.ResponseEntity;
 public class PageController {
 	
 	private static final String ADMIN_AUTH = "ADMIN_AUTH";
-	private static final String ADMIN_SERIAL_KEY = System.getenv().getOrDefault("ADMIN_SERIAL_KEY", "lolLand1!2@");
+	private static final String ADMIN_SERIAL_KEY = System.getenv().getOrDefault("ADMIN_SERIAL_KEY", "tjdgns");
 	
 	@RequestMapping(value = "/", method = RequestMethod.GET)
 	public String index(Model model) {

@@ -3,5 +3,107 @@
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="kr.lolland.dao.AuctionDao">
 
+ <!-- AUC_MAIN: RANDOMCODE/A_STATUS 사용 -->
+  <select id="selectAucMainByRandomCode" resultType="map">
+    SELECT
+      SEQ,
+      RANDOMCODE,
+      A_STATUS,
+      TITLE,
+      USE_YN,
+      REG_DTM,
+      UPD_DTM
+    FROM lolland.AUC_MAIN
+    WHERE RANDOMCODE = #{code}
+    LIMIT 1
+  </select>
+
+  <!-- 팀장 존재 여부 (LEADERFLG='Y') -->
+  <select id="countLeaderByNick" resultType="int">
+    SELECT COUNT(1)
+    FROM lolland.AUC_MEMBER
+    WHERE AUC_SEQ = #{aucSeq}
+      AND NICK = #{nick}
+      AND LEADERFLG = 'Y'
+  </select>
+
+  <!-- 팀장 온라인 상태 갱신 -->
+  <update id="updateLeaderOnline">
+    UPDATE lolland.AUC_MEMBER
+    SET ONLINE_YN = #{onlineYn},
+        UPD_DTM   = NOW()
+    WHERE AUC_SEQ = #{aucSeq}
+      AND NICK    = #{nick}
+      AND LEADERFLG = 'Y'
+  </update>
+
+  <!-- 대기실 스냅샷: 팀장 목록/카운트 -->
+  <select id="selectLeaders" resultType="map">
+    SELECT
+      NICK,
+      LEADERFLG,
+      READY_YN,
+      ONLINE_YN,
+      TIER,
+      MROLE,
+      SROLE,
+      NO,
+      POINT
+    FROM lolland.AUC_MEMBER
+    WHERE AUC_SEQ = #{aucSeq}
+      AND LEADERFLG = 'Y'
+    ORDER BY NO IS NULL, NO ASC, NICK ASC
+  </select>
+
+  <select id="countLeadersOnline" resultType="int">
+    SELECT COUNT(1)
+    FROM lolland.AUC_MEMBER
+    WHERE AUC_SEQ = #{aucSeq}
+      AND LEADERFLG = 'Y'
+      AND ONLINE_YN = 'Y'
+  </select>
+
+  <!-- READY 토글(팀장만) -->
+  <update id="toggleReady">
+    UPDATE lolland.AUC_MEMBER
+    SET READY_YN = CASE WHEN READY_YN='Y' THEN 'N' ELSE 'Y' END,
+        UPD_DTM  = NOW()
+    WHERE AUC_SEQ = #{aucSeq}
+      AND NICK    = #{nick}
+      AND LEADERFLG = 'Y'
+  </update>
+
+  <!-- 활성 경매 수: WAIT/ING 만 카운트 (USE_YN='Y' 권장) -->
+  <select id="countActiveAuctions" resultType="int">
+    SELECT COUNT(1)
+    FROM lolland.AUC_MAIN
+    WHERE A_STATUS IN ('WAIT','ING')
+      AND USE_YN = 'Y'
+  </select>
+
+  <!-- 경매 상태 변경 -->
+  <update id="updateAucStatus">
+    UPDATE lolland.AUC_MAIN
+    SET A_STATUS = #{status},
+        UPD_DTM  = NOW()
+    WHERE SEQ = #{aucSeq}
+  </update>
   
+  <update id="markLeaderReady">
+  UPDATE lolland.AUC_MEMBER
+  SET READY_YN = #{readyYn},
+      UPD_DTM  = NOW()
+  WHERE AUC_SEQ = #{aucSeq}
+    AND NICK    = #{nick}
+    AND LEADERFLG = 'Y'
+</update>
+  
+  <update id="setLeaderReady">
+  UPDATE lolland.AUC_MEMBER
+  SET READY_YN = #{readyYn},
+      UPD_DTM  = NOW()
+  WHERE AUC_SEQ = #{aucSeq}
+    AND NICK    = #{nick}
+    AND LEADERFLG = 'Y'
+</update>
 </mapper>

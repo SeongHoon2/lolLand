@@ -1,88 +1,73 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
 
-:root{
-  --bg:#0f1115; --surface:#171a22; --card:#1d212b; --muted:#9096a6;
-  --text:#eef1f7; --accent:#ffd54d; --accent-2:#4da3ff;
-  --danger:#ff6b6b; --success:#58d68d; --warn:#ffb84d;
-  --border:#2a2f3a; --gap:12px; --radius:14px;
-  --shadow:0 8px 24px rgba(0,0,0,.25);
-}
-*{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
+#auctionApp{--surface:#171a22;--card:#1d212b;--muted:#9096a6;--text:#eef1f7;--accent:#ffd54d;--accent-2:#4da3ff;--danger:#ff6b6b;--success:#58d68d;--warn:#ffb84d;--border:#2a2f3a;--gap:12px;--radius:14px;--shadow:0 8px 24px rgba(0,0,0,.25);color:var(--text);font:14px/1.5 'Noto Sans KR',sans-serif}
+#auctionApp,#auctionApp *{box-sizing:border-box}
+#auctionApp{background:var(--bg)}
+#auctionApp .au-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:linear-gradient(180deg,#151923,#11141b);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+#auctionApp .au-title{margin:0;font-size:18px;letter-spacing:.3px}
+#auctionApp .au-status-badge{padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:600}
+#auctionApp.container,#auctionApp .au-container{max-width:1200px;margin:24px auto;padding:0 16px;display:grid;gap:var(--gap)}
+#auctionApp .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 16px 20px;box-shadow:var(--shadow)}
+#auctionApp .card-title{margin:0 0 12px;font-size:18px}
+#auctionApp .pill{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:999px}
+#auctionApp .pill.warn{color:#222;background:var(--accent);border-color:#eab308}
+#auctionApp .row{display:flex;align-items:center}
+#auctionApp .row.between{justify-content:space-between}
+#auctionApp .row.end{justify-content:flex-end}
+#auctionApp .row.gap{gap:var(--gap)}
+#auctionApp .grid-3{display:grid;grid-template-columns:1.1fr 1fr 1.3fr;gap:var(--gap);margin-top:10px}
+#auctionApp .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+#auctionApp .form-grid{display:grid;grid-template-columns:60px 1fr;gap:10px 12px;max-width:520px}
+#auctionApp .form-grid input,#auctionApp .form-grid select,#auctionApp .input-number{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#0e1218;color:var(--text);outline:none}
+#auctionApp .form-grid input:focus,#auctionApp .input-number:focus{border-color:#2b7cff}
+#auctionApp .form-grid label{display:flex;align-items:center}
+#auctionApp .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0e1218;color:#fff;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+#auctionApp .btn.sm{padding:6px 12px;font-size:13px;border-radius:8px}
+#auctionApp .btn:hover{filter:brightness(1.05)}
+#auctionApp .btn.primary{background:#2b7cff;border-color:#2b6fe0;font-weight:700}
+#auctionApp .btn.success{background:#2ea66f;border-color:#25975f;font-weight:700;color:#fff}
+#auctionApp .btn.success:hover{background:#249a5a;border-color:#1f834d}
+#auctionApp .btn.danger{background:#d15252;border-color:#c14444;font-weight:700;color:#fff}
+#auctionApp .list{list-style:none;margin:8px 0 0;padding:0;max-height:none;overflow:visible}
+#auctionApp .list li{padding:8px 10px;border-bottom:1px dashed var(--border);display:flex;justify-content:space-between;gap:8px;color:#c9ceda}
+#auctionApp .player{display:grid;gap:8px}
+#auctionApp .player-name{font-weight:700}
+#auctionApp .player-meta{color:var(--muted)}
+#auctionApp .price{display:flex;align-items:baseline;gap:8px}
+#auctionApp .price strong{font-size:20px}
+#auctionApp .timer{margin-top:6px;font-weight:800;font-size:20px;color:#111;background:var(--accent);padding:6px 10px;border-radius:8px;width:max-content}
+#auctionApp .budget{color:var(--muted);margin-bottom:8px}
+#auctionApp .quick .btn{min-width:64px}
+#auctionApp .tbl{width:100%;border-collapse:collapse;font-size:13px}
+#auctionApp .tbl th,#auctionApp .tbl td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:center}
+#auctionApp .tbl thead th{color:#aab0bf}
+#auctionApp .feed{list-style:none;margin:8px 0 0;padding:0;max-height:240px;overflow:auto}
+#auctionApp .feed li{padding:8px 0;border-bottom:1px dashed var(--border);color:#cfd5e3}
+#auctionApp[data-state="STEP1"]{display:grid;place-items:center;padding:24px 16px}
+#auctionApp[data-state="STEP1"] .step1{width:100%;max-width:340px;padding-bottom:24px}
+#auctionApp #step1 #btnJoin{grid-column:1/-1;justify-self:center;min-width:80px;margin-top:10px}
+#auctionApp #btnJoin{background:#2b7cff;border-color:#2b6fe0;color:#fff;font-weight:700}
+#auctionApp #btnJoin:hover{filter:none;background:#1f6ae6;border-color:#1b5cd1}
+#auctionApp #btnJoin:active{transform:translateY(1px)}
+#auctionApp #btnJoin:focus-visible{outline:2px solid #8ab4ff;outline-offset:2px}
+#auctionApp[data-state="STEP2"]{display:grid;place-items:center;padding:24px 16px}
+#auctionApp[data-state="STEP2"] .step2{width:100%;max-width:380px;padding:20px}
+#auctionApp #step2>.row.between{align-items:flex-start;margin-bottom:8px}
+#auctionApp[data-state="STEP2"] .card{padding:12px 16px 16px}
+#auctionApp #btnReady{background:#2b7cff;border-color:#2b6fe0;color:#fff;font-weight:700}
+#auctionApp #btnReady:hover{filter:none;background:#1f6ae6;border-color:#1b5cd1}
+#auctionApp #btnReady:active{transform:translateY(1px)}
+#auctionApp #btnStart{background:#2ea66f;border-color:#25975f;color:#fff;font-weight:700}
+#auctionApp #btnStart:hover{background:#249a5a;border-color:#1f834d}
+#auctionApp #leaderList{padding-bottom:10px}
+#auctionApp #leaderListTitle{margin:0 0 6px}
+#auctionApp #leaderList li .online{color:#2b7cff;font-weight:600}
+#auctionApp #leaderList li .offline{color:#9096a6}
+#auctionApp[data-state="STEP2"] .row.end{padding-top:10px}
+#auctionApp[data-state="STEP3"] .au-status-badge{background:#101c12;color:#58d68d}
+#auctionApp [data-admin-only="true"]{display:none}
+body.admin #auctionApp [data-admin-only="true"]{display:inline-flex}
+#auctionApp .is-disabled{opacity:.6;cursor:not-allowed}
+#auctionApp #btnStart {background:#2ea66f;color:#fff;font-weight:700;}
+#auctionApp #btnStart:hover {background:#249a5a;border-color:#1f834d;}
 
-/* 헤더(사이트 공통 사용 시 선택) */
-.au-header{display:flex; align-items:center; justify-content:space-between; padding:16px 24px; background:linear-gradient(180deg,#151923,#11141b); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5}
-.au-title{margin:0; font-size:18px; letter-spacing:.3px}
-.au-status-badge{padding:4px 10px; border-radius:999px; background:var(--surface); border:1px solid var(--border); color:var(--muted); font-weight:600}
-
-/* 컨테이너 (.au-container와 .container 둘 다 지원) */
-.au-container,
-.container{max-width:1200px; margin:24px auto; padding:0 16px; display:grid; gap:var(--gap)}
-
-.card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px 16px 20px; box-shadow:var(--shadow)}
-.card-title{margin:4px 0 12px; font-size:16px}
-.pill{background:var(--surface); border:1px solid var(--border); color:var(--muted); padding:4px 10px; border-radius:999px}
-.pill.warn{color:#222; background:var(--accent); border-color:#eab308}
-
-.row{display:flex; align-items:center}
-.row.between{justify-content:space-between}
-.row.end{justify-content:flex-end}
-.row.gap{gap:var(--gap)}
-
-.grid-3{display:grid; grid-template-columns:1.1fr 1fr 1.3fr; gap:var(--gap); margin-top:10px}
-.panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px}
-
-.form-grid{display:grid; grid-template-columns:120px 1fr; gap:10px 12px; max-width:520px}
-.form-grid input, .form-grid select, .input-number{
-  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border);
-  background:#0e1218; color:var(--text); outline:none;
-}
-.form-grid input:focus, .input-number:focus{border-color:#2b7cff}
-
-.form-hint{grid-column:1/-1; color:var(--muted); margin:4px 0}
-.form-error{grid-column:1/-1; color:var(--danger); min-height:18px}
-
-.btn{
-  padding:10px 14px; border-radius:10px; border:1px solid var(--border);
-  background:#0e1218; color:var(--text); cursor:pointer;
-}
-.btn:hover{filter:brightness(1.05)}
-.btn.primary{background:var(--accent); color:#111; border-color:#eab308; font-weight:700}
-.btn.success{background:var(--success); color:#102b1f; border-color:#2ea66f}
-.btn.danger{background:var(--danger); color:#280f10; border-color:#d15252}
-
-.list{list-style:none; margin:8px 0 0; padding:0; max-height:220px; overflow:auto}
-.list li{padding:8px 10px; border-bottom:1px dashed var(--border); display:flex; justify-content:space-between; gap:8px; color:#c9ceda}
-
-.lobby-grid{display:grid; grid-template-columns:1fr 1fr; gap:var(--gap); margin:12px 0}
-
-.player{display:grid; gap:8px}
-.player-name{font-weight:700}
-.player-meta{color:var(--muted)}
-.price{display:flex; align-items:baseline; gap:8px}
-.price strong{font-size:20px}
-.timer{margin-top:6px; font-weight:800; font-size:20px; color:#111; background:var(--accent); padding:6px 10px; border-radius:8px; width:max-content}
-
-.budget{color:var(--muted); margin-bottom:8px}
-.quick .btn{min-width:64px}
-
-.tbl{width:100%; border-collapse:collapse; font-size:13px}
-.tbl th,.tbl td{border-bottom:1px solid var(--border); padding:8px 6px; text-align:center}
-.tbl thead th{color:#aab0bf}
-
-.feed{list-style:none; margin:8px 0 0; padding:0; max-height:240px; overflow:auto}
-.feed li{padding:8px 0; border-bottom:1px dashed var(--border); color:#cfd5e3}
-
-/* 상태 배지 색상 (body와 #auctionApp 모두 대응) */
-body[data-state="STEP1"] .au-status-badge,
-#auctionApp[data-state="STEP1"] .au-status-badge{background:#16202e; color:#8ab4ff}
-body[data-state="STEP2"] .au-status-badge,
-#auctionApp[data-state="STEP2"] .au-status-badge{background:#1e1a0f; color:#ffd54d}
-body[data-state="STEP3"] .au-status-badge,
-#auctionApp[data-state="STEP3"] .au-status-badge{background:#101c12; color:#58d68d}
-
-/* 관리자 전용 요소 */
-[data-admin-only="true"]{display:none;}
-body.admin [data-admin-only="true"]{display:inline-flex;}
-.is-disabled{ opacity:.6; cursor:not-allowed; }
