@@ -2,6 +2,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <groupId>kr.lolland</groupId>
   <artifactId>lolLand</artifactId>
   <version>1.0.0</version>
@@ -15,6 +16,11 @@
     <hikari.version>4.0.3</hikari.version>
     <mysql.version>8.4.0</mysql.version>
     <jstl.version>1.2</jstl.version>
+    <slf4j.version>2.0.13</slf4j.version>
+    <logback.version>1.5.6</logback.version>
+    <jackson.version>2.15.4</jackson.version>
+    <lombok.version>1.18.32</lombok.version>
+    <servlet.api.version>3.1.0</servlet.api.version> <!-- Tomcat 8.5 호환 -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -28,6 +34,18 @@
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-jdbc</artifactId>
+      <version>${spring.version}</version>
+    </dependency>
+
+    <!-- Spring Messaging/WebSocket -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-messaging</artifactId>
+      <version>${spring.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-websocket</artifactId>
       <version>${spring.version}</version>
     </dependency>
 
@@ -61,7 +79,7 @@
     <dependency>
       <groupId>javax.servlet</groupId>
       <artifactId>javax.servlet-api</artifactId>
-      <version>4.0.1</version>
+      <version>${servlet.api.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -69,71 +87,56 @@
       <artifactId>jstl</artifactId>
       <version>${jstl.version}</version>
     </dependency>
-    
+
+    <!-- Lombok (compile-time only) -->
     <dependency>
-    	<groupId>org.springframework</groupId>
-	    <artifactId>spring-messaging</artifactId>
-	    <version>${spring.version}</version>
-	</dependency>
-	
-	<dependency>
-	    <groupId>org.springframework</groupId>
-	    <artifactId>spring-websocket</artifactId>
-	    <version>${spring.version}</version>
-	</dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
+    </dependency>
 
-	<dependency>
-	    <groupId>org.projectlombok</groupId>
-	    <artifactId>lombok</artifactId>
-	    <version>1.18.32</version>
-	    <scope>provided</scope>
-	</dependency>
+    <!-- Logging -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>${logback.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jcl-over-slf4j</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jul-to-slf4j</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
 
-	  <!-- 로깅 API -->
-	  <dependency>
-	    <groupId>org.slf4j</groupId>
-	    <artifactId>slf4j-api</artifactId>
-	    <version>2.0.13</version>
-	  </dependency>
-	
-	  <!-- 바인딩: Logback -->
-	  <dependency>
-	    <groupId>ch.qos.logback</groupId>
-	    <artifactId>logback-classic</artifactId>
-	    <version>1.5.6</version>
-	  </dependency>
-	
-	  <!-- JCL 를 SLF4J 로 우회 (Spring의 commons-logging 대체) -->
-	  <dependency>
-	    <groupId>org.slf4j</groupId>
-	    <artifactId>jcl-over-slf4j</artifactId>
-	    <version>2.0.13</version>
-	  </dependency>
-
-	<dependency>
-	  <groupId>org.slf4j</groupId>
-	  <artifactId>jul-to-slf4j</artifactId>
-	  <version>2.0.13</version>
-	</dependency>    
-	
-	<dependency>
-	  <groupId>com.fasterxml.jackson.core</groupId>
-	  <artifactId>jackson-databind</artifactId>
-	  <version>2.15.4</version>
-	</dependency>
-	<dependency>
-	  <groupId>com.fasterxml.jackson.core</groupId>
-	  <artifactId>jackson-annotations</artifactId>
-	  <version>2.15.4</version>
-	</dependency>
-	<dependency>
-	  <groupId>com.fasterxml.jackson.core</groupId>
-	  <artifactId>jackson-core</artifactId>
-	  <version>2.15.4</version>
-	</dependency>
-	
+    <!-- Jackson -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
   </dependencies>
 
+  <!-- CI에서만 필요한 GCP/Sheets 의존성: 스프링/잭슨 버전 override 제거 -->
   <profiles>
     <profile>
       <id>ci-deps</id>
@@ -179,60 +182,37 @@
           <artifactId>google-api-services-sheets</artifactId>
           <version>v4-rev20250616-2.0.0</version>
         </dependency>
-
         <dependency>
           <groupId>com.google.code.gson</groupId>
           <artifactId>gson</artifactId>
           <version>2.10.1</version>
         </dependency>
-        <dependency>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-          <version>1.2</version>
-        </dependency>
-        <dependency>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-core</artifactId>
-          <version>2.15.2</version>
-        </dependency>
-        <dependency>
-		    <groupId>org.springframework</groupId>
-		    <artifactId>spring-webmvc</artifactId>
-		    <version>5.3.34</version>
-		  </dependency>
-		  <dependency>
-		    <groupId>org.springframework</groupId>
-		    <artifactId>spring-messaging</artifactId>
-		    <version>5.3.34</version>
-		  </dependency>
-		  <dependency>
-		    <groupId>org.springframework</groupId>
-		    <artifactId>spring-websocket</artifactId>
-		    <version>5.3.34</version>
-		  </dependency>
-		  <dependency>
-		    <groupId>org.projectlombok</groupId>
-		    <artifactId>lombok</artifactId>
-		    <version>1.18.32</version>
-		    <scope>provided</scope>
-		  </dependency>
-        
       </dependencies>
     </profile>
   </profiles>
 
   <build>
     <plugins>
+      <!-- Lombok annotation processing 명시 -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>3.11.0</version>
         <configuration>
           <source>${java.version}</source>
           <target>${java.version}</target>
           <encoding>${project.build.sourceEncoding}</encoding>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
+          </annotationProcessorPaths>
+          <!-- 필요시 파라미터 리플렉션: <compilerArgs><arg>-parameters</arg></compilerArgs> -->
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>
