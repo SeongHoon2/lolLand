@@ -48,7 +48,7 @@ public class adminController {
                     .createScoped(Collections.singletonList(SheetsScopes.SPREADSHEETS));
             Sheets service = new Sheets.Builder(httpTransport, jsonFactory, new HttpCredentialsAdapter(credentials))
                     .setApplicationName("LolLand Auction System").build();
-
+ 
             String spreadsheetId = "1P-I6ZnQbkjaJ2yl7zaGnv8A4t9luP3fQLFnRDuD4wQE";
             String range = "Auction!B3:G42";
             ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
