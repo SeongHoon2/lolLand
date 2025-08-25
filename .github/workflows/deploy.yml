@@ -3,7 +3,7 @@ name: Deploy to Lightsail Tomcat
 
 on:
   push:
-    branches: [ master ]        # 필요하면 [ main, master ] 로
+    branches: [ master ]   # 필요시 [ main, master ]
   workflow_dispatch:
 
 concurrency:
@@ -11,14 +11,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # ── 환경 맞춤 ──────────────────────────
   JAVA_VERSION: '8'
-  REMOTE_TOMCAT: '/opt/tomcat'      # CATALINA_BASE fallback
-  TOMCAT_SERVICE: 'tomcat'          # 실제 서비스명
-  CONTEXT_NAME: 'ROOT'              # 루트(/) 사용
-  HEALTH_URL: 'http://localhost:8080/'  # 앱이 200/302 주는 실제 경로면 더 좋음 (/index.jsp, /health 등)
+  REMOTE_TOMCAT: '/opt/tomcat'             # CATALINA_BASE fallback
+  TOMCAT_SERVICE: 'tomcat'                 # 실제 서비스명
+  CONTEXT_NAME: 'ROOT'                     # 루트(/) 사용
+  HEALTH_URL: 'http://localhost:8080/auction'  # 실제 200/302 보장 엔드포인트
   REMOTE_TMP: '/tmp/deploy'
-  # ─────────────────────────────────────
 
 jobs:
   build-and-deploy:
@@ -32,11 +30,12 @@ jobs:
           echo "PWD=$PWD"
           test -f "pom.xml" || (echo "pom.xml not found in repo root" && exit 1)
 
-      - name: Set up Temurin JDK 8
+      - name: Set up Temurin JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
 
       - name: Install Maven
         run: |
@@ -47,22 +46,26 @@ jobs:
       - name: Build WAR with Maven
         run: mvn -B -DskipTests package
 
-      - name: Locate WAR
+      - name: Locate WAR (newest)
         id: locate-war
+        shell: bash
         run: |
-          set -e
-          FOUND=$(find "." -type f -name "*.war" | head -n 1 || true)
-          if [ -z "$FOUND" ]; then
+          set -euo pipefail
+          FOUND=$(find "./" -type f -name "*.war" -printf "%T@ %p\n" | sort -nr | head -n1 | awk '{print $2}')
+          if [ -z "${FOUND:-}" ]; then
             echo "No WAR found."
-            grep -n "<packaging>" pom.xml || true
-            find "." -maxdepth 3 -type d -name target -print || true
             exit 1
           fi
-          echo "WAR_PATH=$FOUND" >> $GITHUB_OUTPUT
+          echo "WAR_PATH=$FOUND" >> "$GITHUB_OUTPUT"
           echo "WAR found at: $FOUND"
 
-      - name: Show artifact
-        run: ls -lh "${{ steps.locate-war.outputs.WAR_PATH }}"
+      - name: Inspect WAR contents (controllers & views)
+        run: |
+          WAR="${{ steps.locate-war.outputs.WAR_PATH }}"
+          echo "Inspecting $WAR"
+          jar tf "$WAR" | grep -Ei 'Controller\.class' || (echo "No controllers found!" && exit 1)
+          # 필요 시 JSP 존재 검사 (없어도 실패로 보지 않음)
+          jar tf "$WAR" | grep -Ei 'WEB-INF/views/(auction|manageAuction|createAuction)\.jsp' || echo "JSP check: not found or skipped"
 
       - name: Sanity SSH check
         uses: appleboy/ssh-action@v1.0.3
@@ -72,7 +75,19 @@ jobs:
           key: ${{ secrets.LS_SSH_KEY }}
           script: 'echo "SSH OK on $(hostname)"; uname -a'
 
-      # 업로드: /tmp/deploy/xxx.war 로 평탄화
+      - name: Prep remote tmp (clean)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LS_HOST }}
+          username: ${{ secrets.LS_USER }}
+          key: ${{ secrets.LS_SSH_KEY }}
+          script: |
+            set -e
+            sudo rm -rf ${{ env.REMOTE_TMP }}
+            sudo mkdir -p ${{ env.REMOTE_TMP }}
+            sudo chown "$USER":"$USER" ${{ env.REMOTE_TMP }}
+            ls -ld ${{ env.REMOTE_TMP }}
+
       - name: Upload WAR to Lightsail (SCP)
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -92,8 +107,8 @@ jobs:
           script: |
             echo "List ${{ env.REMOTE_TMP }}:"
             ls -lh ${{ env.REMOTE_TMP }} || true
-            echo "Find any WAR:"
-            find ${{ env.REMOTE_TMP }} -maxdepth 2 -type f -name "*.war" -print || true
+            echo "Find WARs:"
+            find ${{ env.REMOTE_TMP }} -maxdepth 2 -type f -name "*.war" -printf "%TY-%Tm-%Td %TH:%TM %Tp -> %p\n" | sort -r || true
 
       - name: Deploy & Restart Tomcat (SSH)
         uses: appleboy/ssh-action@v1.0.3
@@ -110,7 +125,7 @@ jobs:
             CONTEXT="${{ env.CONTEXT_NAME }}"
             HEALTH_URL="${{ env.HEALTH_URL }}"
 
-            # --- CATALINA_BASE 정확 추출 ---
+            # --- Detect CATALINA_BASE ---
             CAT_BASE="$(sudo systemctl show "$SERVICE" -p Environment \
               | sed -n 's/^Environment=//p' \
               | tr ' ' '\n' \
@@ -134,20 +149,21 @@ jobs:
             echo "CATALINA_BASE=$CAT_BASE"
             echo "WEBAPPS=$WEBAPPS"
 
-            sudo mkdir -p "$TMPDIR"
-            sudo chown -R "$USER":"$USER" "$TMPDIR"
-
-            WAR_FILE="$(find "$TMPDIR" -maxdepth 2 -type f -name '*.war' | head -n1 || true)"
-            if [ -z "$WAR_FILE" ]; then
-              echo "WAR not found under $TMPDIR"; exit 1
-            fi
+            # 최신 WAR 선택 (mtime 기준)
+            WAR_FILE="$(find "$TMPDIR" -type f -name '*.war' -printf '%T@ %p\n' | sort -nr | head -n1 | awk '{print $2}')"
+            [ -z "$WAR_FILE" ] && { echo "WAR not found under $TMPDIR"; exit 1; }
             echo "WAR_FILE=$WAR_FILE"
 
             echo "[1/6] Stop Tomcat"
             sudo systemctl stop "$SERVICE" || true
 
             echo "[2/6] Clean old app & work"
-            sudo rm -rf "$WEBAPPS/${CONTEXT}" "$WORKDIR/"* || true
+            if [ "$CONTEXT" = "ROOT" ]; then
+              sudo rm -rf "$WEBAPPS/ROOT" "$WEBAPPS/ROOT.war"
+            else
+              sudo rm -rf "$WEBAPPS/${CONTEXT}" "$WEBAPPS/${CONTEXT}.war"
+            fi
+            sudo rm -rf "$WORKDIR/"* || true
 
             echo "[3/6] Deploy new WAR -> $WEBAPPS"
             if [ "$CONTEXT" = "ROOT" ]; then
@@ -155,11 +171,9 @@ jobs:
             else
               DEST="$WEBAPPS/${CONTEXT}.war"
             fi
-            sudo rm -f "$DEST"
             sudo cp "$WAR_FILE" "$DEST"
 
-            # 권한/소유자 정리(톰캣이 읽을 수 있게)
-            # tomcat 사용자/그룹명이 다르면 변경
+            # 권한 정리
             if id tomcat >/dev/null 2>&1; then
               sudo chown tomcat:tomcat "$DEST" || true
             fi
@@ -171,27 +185,30 @@ jobs:
             echo "[5/6] Start Tomcat"
             sudo systemctl start "$SERVICE"
 
-            echo "[6/6] Wait for deploy (explode) & health..."
-            # 최대 180초 대기: 3초 x 60
+            echo "[6/6] Health check (2xx/3xx required)"
+            ENDPOINTS=(
+              "${HEALTH_URL}"
+              "http://localhost:8080/auction"
+              "http://localhost:8080/manageAuction"
+              "http://localhost:8080/createAuction"
+            )
             OK=0
             for i in $(seq 1 60); do
-              # 1) curl로 2xx/3xx 확인
-              if curl -sS -o /dev/null -w "%{http_code}" "$HEALTH_URL" | grep -Eq '^(2|3)[0-9]{2}$'; then
-                echo "Health check OK on $HEALTH_URL"; OK=1; break
-              fi
-              # 2) ROOT 디렉터리(exploded) 생겼는지도 성공 조건으로
-              if [ "$CONTEXT" = "ROOT" ] && [ -d "$WEBAPPS/ROOT" ]; then
-                echo "Exploded directory $WEBAPPS/ROOT detected. Considering deploy OK."; OK=1; break
-              fi
-              if [ "$CONTEXT" != "ROOT" ] && [ -d "$WEBAPPS/${CONTEXT}" ]; then
-                echo "Exploded directory $WEBAPPS/${CONTEXT} detected. Considering deploy OK."; OK=1; break
-              fi
+              for url in "${ENDPOINTS[@]}"; do
+                code=$(curl -sS -o /dev/null -w "%{http_code}" "$url" || true)
+                if echo "$code" | grep -Eq '^(2|3)[0-9]{2}$'; then
+                  echo "Health OK: $url ($code)"
+                  OK=1
+                  break
+                fi
+              done
+              [ "$OK" -eq 1 ] && break
               echo "Retry $i/60 ..."
               sleep 3
             done
 
             if [ "$OK" -ne 1 ]; then
-              echo "Health check failed or app not exploded in time."
+              echo "Health check failed."
               echo "--- systemd logs (last 200) ---"
               sudo journalctl -u "$SERVICE" -n 200 --no-pager || true
               echo "--- catalina.out (last 200) ---"
