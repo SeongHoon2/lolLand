@@ -23,7 +23,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import kr.lolland.service.AdminService;
 
 @Controller
-public class adminController {
+public class AdminController {
 
     @Autowired
     private AdminService adminService;
