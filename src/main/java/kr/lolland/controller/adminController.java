@@ -52,7 +52,7 @@ public class adminController {
             String spreadsheetId = "1P-I6ZnQbkjaJ2yl7zaGnv8A4t9luP3fQLFnRDuD4wQE";
             String range = "Auction!B3:G42";
             ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
-            List<List<Object>> values = response.getValues();
+            List<List<Object>> values = response.getValues(); 
 
             List<Map<String,Object>> members = new ArrayList<>();
             if (values != null) {
