@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import kr.lolland.service.AuctionService;
-
+/*
 @RestController
 @RequestMapping("/auction")
 public class AuctionController {
@@ -149,4 +149,4 @@ public class AuctionController {
 
         return resp(true, null, data);
     }
-}
+}*/
