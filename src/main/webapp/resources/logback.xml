@@ -1,16 +1,85 @@
-<configuration>
-  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+<configuration scan="true" scanPeriod="60 seconds" packagingData="false">
+
+  <!-- ===== 공통 속성 / 기본값 (운영 기본 INFO) ===== -->
+  <property name="APP_NAME" value="lolLand"/>
+  <property name="LOG_DIR"  value="${LOG_DIR:-/opt/log/lolland}"/>
+  <property name="PATTERN"  value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} -- %msg%n"/>
+
+  <!-- 레벨을 외부에서 바꿀 수 있게 노출: 로컬에선 -DROOT_LEVEL=DEBUG -DAPP_LEVEL=DEBUG -->
+  <!-- -DROOT_LEVEL=DEBUG -DAPP_LEVEL=DEBUG -->
+  <property name="ROOT_LEVEL" value="${ROOT_LEVEL:-INFO}"/>
+  <property name="APP_LEVEL"  value="${APP_LEVEL:-INFO}"/>
+
+  <!-- ===== Console (root 레벨에 따름) ===== -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+      <pattern>${PATTERN}</pattern>
     </encoder>
   </appender>
 
-  <root level="INFO">
-    <appender-ref ref="STDOUT"/>
+  <!-- ===== 앱 로그 (파일, root 레벨 이상) ===== -->
+  <appender name="APP_ROLL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}.log</file>
+    <encoder>
+      <pattern>${PATTERN}</pattern>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>14</maxHistory>
+      <totalSizeCap>5GB</totalSizeCap>
+    </rollingPolicy>
+  </appender>
+
+  <!-- ===== ERROR 전용 (ERROR 이상만) ===== -->
+  <appender name="ERR_ROLL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}-error.log</file>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>ERROR</level>
+    </filter>
+    <encoder>
+      <pattern>${PATTERN}</pattern>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/${APP_NAME}-error.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>50MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>5GB</totalSizeCap>
+    </rollingPolicy>
+  </appender>
+
+  <!-- 비동기화로 I/O 부하 감소 -->
+  <appender name="ASYNC_APP" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="APP_ROLL"/>
+    <queueSize>8192</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <neverBlock>true</neverBlock>
+  </appender>
+
+  <appender name="ASYNC_ERR" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="ERR_ROLL"/>
+    <queueSize>4096</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <neverBlock>true</neverBlock>
+  </appender>
+
+  <!-- ===== noisy 패키지 억제(운영 기본 INFO 기준에서도 과다한 로그 방지) ===== -->
+  <logger name="org.springframework" level="WARN"/>
+  <logger name="org.springframework.web" level="WARN"/>
+  <logger name="org.springframework.web.socket" level="WARN"/>
+  <logger name="org.springframework.messaging" level="WARN"/>
+  <logger name="org.springframework.messaging.simp" level="WARN"/>
+  <logger name="org.apache.tomcat" level="WARN"/>
+  <logger name="org.hibernate" level="WARN"/>
+
+  <!-- 우리 코드 레벨: 기본 INFO, 로컬에선 -DAPP_LEVEL=DEBUG -->
+  <logger name="kr.lolland" level="${APP_LEVEL}"/>
+
+  <!-- ===== Root: 기본 INFO (로컬에선 -DROOT_LEVEL=DEBUG 로 덮어씀) ===== -->
+  <root level="${ROOT_LEVEL}">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_APP"/>
+    <appender-ref ref="ASYNC_ERR"/>
   </root>
 
-  <logger name="org.springframework.web.socket" level="DEBUG"/>
-  <logger name="org.springframework.messaging" level="DEBUG"/>
-  <logger name="org.springframework.messaging.simp" level="DEBUG"/>
-  <logger name="org.springframework.web.servlet.DispatcherServlet" level="DEBUG"/>
 </configuration>

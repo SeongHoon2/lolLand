@@ -8,7 +8,7 @@
 #auctionApp .au-status-badge{padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:600}
 #auctionApp.container,#auctionApp .au-container{max-width:1200px;margin:24px auto;padding:0 16px;display:grid;gap:var(--gap)}
 #auctionApp .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 16px 20px;box-shadow:var(--shadow)}
-#auctionApp .card-title{margin:0 0 12px;font-size:18px}
+#auctionApp .card-title{margin:0 0 20px;font-size:18px}
 #auctionApp .pill{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:999px}
 #auctionApp .pill.warn{color:#222;background:var(--accent);border-color:#eab308}
 #auctionApp .row{display:flex;align-items:center}
