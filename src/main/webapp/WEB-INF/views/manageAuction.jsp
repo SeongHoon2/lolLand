@@ -82,7 +82,8 @@
 $(function(){
   var AUC_PAGE_SIZE = 8;
   var MEM_PAGE_SIZE = 10;
-
+  var currentAucPage = 1;
+  
   var $list   = $('#auctionList');
   var $tbody  = $('#pTableBody');
   var $panel  = $('#detailPanel');
@@ -109,22 +110,23 @@ $(function(){
   loadAuctionList(1);
 
   function loadAuctionList(page){
-    var q = $q.val() || '';
-    $btnSearch.prop('disabled', true).addClass('is-loading');
-    $.getJSON('/getAucMainList', { query:q, page:page, size:AUC_PAGE_SIZE })
-      .done(function(res){
-        renderAuctionList(res && res.list ? res.list : []);
-        renderPaging('#auctionPaging', res && res.page ? res.page : {number:1,totalPages:1}, function(nextPage){
-          loadAuctionList(nextPage);
-        });
-      })
-      .fail(function(){
-        alert('검색에 실패했습니다.');
-      })
-      .always(function(){
-        $btnSearch.prop('disabled', false).removeClass('is-loading');
-      });
-  }
+	    var q = $q.val() || '';
+	    $btnSearch.prop('disabled', true).addClass('is-loading');
+	    $.getJSON('/getAucMainList', { query:q, page:page, size:AUC_PAGE_SIZE })
+	      .done(function(res){
+	        currentAucPage = page;
+	        renderAuctionList(res && res.list ? res.list : []);
+	        renderPaging('#auctionPaging', res && res.page ? res.page : {number:1,totalPages:1}, function(nextPage){
+	          loadAuctionList(nextPage);
+	        });
+	      })
+	      .fail(function(){
+	        alert('검색에 실패했습니다.');
+	      })
+	      .always(function(){
+	        $btnSearch.prop('disabled', false).removeClass('is-loading');
+	      });
+	  }
 
   function renderAuctionList(rows){
     var html='';
@@ -244,5 +246,56 @@ $(function(){
 
   function esc(v){ return v==null?'':String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function safe(v){ return v==null?'':esc(v); }
+
+  function setLeftStatus(aucId, code, text){
+	    var $it = $list.find('.am-item[data-id="'+aucId+'"]');
+	    $it.find('.am-status').removeClass('SYNC WAIT ING END').addClass(code).text(text);
+	  }
+
+  $action.on('click', function(){
+	    var act = $(this).attr('data-action');
+	    var $active = $list.find('.am-item.active');
+	    var aucId = $active.data('id');
+	    if (!aucId || !act) return;
+
+	    if (act === 'open-lobby') {
+	      if (!confirm('해당 경매의 대기실을 오픈하시겠습니까?')) return;
+	      $.ajax({
+	        url: '/openLobby/' + aucId,
+	        type: 'POST',
+	        contentType: 'application/json',
+	        data: '{}'
+	      }).done(function(r){
+	        if (r && r.ok){
+	          setLeftStatus(aucId, 'WAIT', '경매 시작 대기중');
+	          $action.text('경매 강제 종료').attr('data-action','force-end');
+	          alert('대기실이 오픈되었습니다.');
+	        } else {
+	          alert(r && r.msg ? r.msg : '대기실 오픈에 실패했습니다.');
+	        }
+	      }).fail(function(){
+	        alert('로비 오픈 요청 중 오류가 발생했습니다.');
+	      });
+
+	    } else if (act === 'force-end') {
+	      if (!confirm('해당 경매를 강제 종료하시겠습니까?')) return;
+	      $.ajax({
+	        url: '/forceEnd/' + aucId,
+	        type: 'POST',
+	        contentType: 'application/json',
+	        data: '{}'
+	      }).done(function(r){
+	        if (r && r.ok){
+	          setLeftStatus(aucId, 'END', '경매 종료');
+	          $action.addClass('hidden').removeAttr('data-action');
+	          alert('경매가 종료되었습니다.');
+	        } else {
+	          alert(r && r.msg ? r.msg : '강제 종료에 실패했습니다.');
+	        }
+	      }).fail(function(){
+	        alert('강제 종료 요청 중 오류가 발생했습니다.');
+	      });
+	    }
+	  });
 });
 </script>

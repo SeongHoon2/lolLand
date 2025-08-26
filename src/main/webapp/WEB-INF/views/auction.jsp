@@ -135,7 +135,7 @@
 
     var $btn = $("#btnReady");
     $btn
-      .text(isReady ? "완료 해제" : "준비 완료")
+      .text(isReady ? "준비 해제" : "준비 완료")
       .data("ready", isReady)
       .attr("aria-pressed", isReady ? "true" : "false")
       .toggleClass("outline", isReady)

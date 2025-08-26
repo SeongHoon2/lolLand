@@ -192,4 +192,49 @@ public class AdminController {
     public Map<String,Object> getAuctionMembers(@PathVariable long id,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="10") int size){
         return adminService.getAuctionMembers(id, page, size);
     }
+    
+    @PostMapping("/openLobby/{id}")
+    @ResponseBody
+    public Map<String,Object> openLobby(@PathVariable long id){
+        Map<String,Object> res = new HashMap<>();
+        try {
+            AdminService.OpenLobbyResult r = adminService.openLobby(id);
+            switch (r){
+                case OK:
+                    res.put("ok", true);
+                    break;
+                case LIMIT:
+                    res.put("ok", false);
+                    res.put("msg", "로비오픈/진행중인 경매가 이미 2건입니다.");
+                    break;
+                case STALE:
+                    res.put("ok", false);
+                    res.put("msg", "상태가 이미 변경되어 로비 오픈할 수 없습니다.");
+                    break;
+                default:
+                    res.put("ok", false);
+                    res.put("msg", "로비 오픈에 실패했습니다.");
+            }
+        } catch (Exception e){
+            res.put("ok", false);
+            res.put("msg", "서버 오류로 로비 오픈에 실패했습니다.");
+        }
+        return res;
+    }
+
+    @PostMapping("/forceEnd/{id}")
+    @ResponseBody
+    public Map<String,Object> forceEnd(@PathVariable long id){
+        Map<String,Object> res = new HashMap<>();
+        try {
+            boolean ok = adminService.forceEnd(id);
+            res.put("ok", ok);
+            if (!ok) res.put("msg", "강제 종료 대상이 없거나 상태가 유효하지 않습니다.");
+        } catch (Exception e){
+            res.put("ok", false);
+            res.put("msg", "서버 오류로 강제 종료에 실패했습니다.");
+        }
+        return res;
+    }
+
 }

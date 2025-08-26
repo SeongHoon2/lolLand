@@ -20,4 +20,9 @@ public interface AdminDao {
 
     int countAuctionMembers(@Param("id") long id);
 
+    int countActiveAuctions();
+    
+    int updateStatusIfSyncToWait(long id);
+    
+    int updateStatusToEnd(long id);
 }

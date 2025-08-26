@@ -93,4 +93,30 @@
   SELECT COUNT(*) FROM AUC_MEMBER WHERE AUC_SEQ=#{id}
 </select>
 
+<select id="countActiveAuctions" resultType="int">
+  SELECT COUNT(*)
+  FROM AUC_MAIN
+  WHERE A_STATUS IN ('WAIT','ING')
+    AND USE_YN = 'Y'
+</select>
+
+<update id="updateStatusIfSyncToWait" parameterType="long">
+  UPDATE AUC_MAIN
+  SET A_STATUS = 'WAIT',
+      UPD_DTM  = NOW()
+  WHERE SEQ = #{id}
+    AND A_STATUS = 'SYNC'
+    AND USE_YN = 'Y'
+</update>
+
+<update id="updateStatusToEnd" parameterType="long">
+  UPDATE AUC_MAIN
+  SET A_STATUS = 'END',
+      UPD_DTM  = NOW()
+  WHERE SEQ = #{id}
+    AND A_STATUS IN ('WAIT','ING')
+    AND USE_YN = 'Y'
+</update>
+
+
 </mapper>
