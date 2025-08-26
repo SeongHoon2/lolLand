@@ -16,11 +16,14 @@
     <hikari.version>4.0.3</hikari.version>
     <mysql.version>8.4.0</mysql.version>
     <jstl.version>1.2</jstl.version>
-    <slf4j.version>2.0.13</slf4j.version>
-    <logback.version>1.5.6</logback.version>
+
+    <!-- Java 8 호환 로깅 스택 -->
+    <slf4j.version>1.7.36</slf4j.version>
+    <logback.version>1.2.13</logback.version>
+
     <jackson.version>2.15.4</jackson.version>
     <lombok.version>1.18.32</lombok.version>
-    <servlet.api.version>3.1.0</servlet.api.version> <!-- Tomcat 8.5 호환 -->
+    <servlet.api.version>3.1.0</servlet.api.version> <!-- Tomcat 8.5 = Servlet 3.1 -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -96,7 +99,7 @@
       <scope>provided</scope>
     </dependency>
 
-    <!-- Logging -->
+    <!-- Logging (Java 8 호환) -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
@@ -136,7 +139,7 @@
     </dependency>
   </dependencies>
 
-  <!-- CI에서만 필요한 GCP/Sheets 의존성: 스프링/잭슨 버전 override 제거 -->
+  <!-- CI에서만 필요한 GCP/Sheets 의존성 -->
   <profiles>
     <profile>
       <id>ci-deps</id>
@@ -209,7 +212,7 @@
               <version>${lombok.version}</version>
             </path>
           </annotationProcessorPaths>
-          <!-- 필요시 파라미터 리플렉션: <compilerArgs><arg>-parameters</arg></compilerArgs> -->
+          <!-- 필요시: <compilerArgs><arg>-parameters</arg></compilerArgs> -->
         </configuration>
       </plugin>
 

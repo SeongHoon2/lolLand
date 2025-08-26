@@ -1,4 +1,4 @@
-package kr.lolland.ws;
+package kr.lolland.controller;
 
 import java.util.Map;
 

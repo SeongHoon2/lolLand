@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import kr.lolland.service.AuctionService;
 
 @RestController
-@RequestMapping("/auction")
+@RequestMapping("/api/auction")
 public class AuctionController {
 
     private final AuctionService auctionService;
@@ -36,14 +36,14 @@ public class AuctionController {
 
         String nick = rawNick;
         Map<String, Object> auc = auctionService.getAucByRandomCode(code);
-        if (auc == null) return resp(false, "존재하지 않는 경매 코드");
+        if (auc == null) return resp(false, "존재하지 않는 입장 코드");
 
         String status = String.valueOf(auc.get("A_STATUS"));
-        if (!"WAIT".equals(status)) return resp(false, "현재 상태(" + status + ")에서는 입장할 수 없습니다.");
+        if (!"WAIT".equals(status)) return resp(false, "입장할 수 없는 상태입니다.");
 
         Long aucSeq = ((Number) auc.get("SEQ")).longValue();
         boolean leaderOk = auctionService.existsLeaderNick(aucSeq, nick);
-        if (!leaderOk) return resp(false, "참가 자격이 없습니다. 팀장 닉네임을 확인하세요.");
+        if (!leaderOk) return resp(false, "참가 자격이 없습니다. 닉네임을 확인하세요.");
 
         // 온라인 표시
         auctionService.markLeaderOnline(aucSeq, nick, "Y");

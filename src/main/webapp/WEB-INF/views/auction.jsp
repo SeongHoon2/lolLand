@@ -96,8 +96,8 @@
   // ✅ JSP가 직접 절대경로를 주입 (컨텍스트 패스/슬래시 문제 방지)
   var URLS = {
     ws: "<c:url value='/ws-auction'/>",
-    restore: "<c:url value='/auction/restore'/>",
-    auctionBase: "<c:url value='/auction/'/>" // 뒤에 code 붙여서 사용
+    restore: "<c:url value='api/auction/restore'/>",
+    auctionBase: "<c:url value='api/auction/'/>" // 뒤에 code 붙여서 사용
   };
   // 디버그: 현재 사용 경로 확인
   try { console.log("[AUCTION URLS]", URLS); } catch(e){}
