@@ -36,9 +36,9 @@ public class AdminController {
             String keyPath;
             String osName = System.getProperty("os.name").toLowerCase();
             if (osName.contains("win")) {
-            	//keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";  // main
+            	keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";  // main
             	//keyPath = "C:/Users/znfmf/Downloads/test/lolLandKey.json"; // sub
-            	keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
+            	//keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
             } else {
                 keyPath = "/opt/etc/keys/lolLandKey.json";
             }
@@ -205,7 +205,7 @@ public class AdminController {
                     break;
                 case LIMIT:
                     res.put("ok", false);
-                    res.put("msg", "로비오픈/진행중인 경매가 이미 2건입니다.");
+                    res.put("msg", "로비 오픈 / 진행중인 경매가 이미 2건입니다.");
                     break;
                 case STALE:
                     res.put("ok", false);

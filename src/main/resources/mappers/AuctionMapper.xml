@@ -23,7 +23,7 @@
     SELECT COUNT(1)
     FROM lolland.AUC_MEMBER
     WHERE AUC_SEQ = #{aucSeq}
-      AND NICK = #{nick}
+      AND NICK = #{nick} COLLATE utf8mb4_bin
       AND LEADERFLG = 'Y'
   </select>
 
@@ -61,7 +61,7 @@
     SET READY_YN = CASE WHEN READY_YN='Y' THEN 'N' ELSE 'Y' END,
         UPD_DTM  = NOW()
     WHERE AUC_SEQ = #{aucSeq}
-      AND NICK    = BINARY #{nick}
+      AND NICK    =  #{nick}
       AND LEADERFLG = 'Y'
   </update>
 

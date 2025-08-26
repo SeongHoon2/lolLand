@@ -31,51 +31,126 @@
   </section>
 
   <section class="card step step3" id="step3" style="display:none;">
-    <div class="row between">
-      <div class="pill" id="roundInfo">Round 1 · Pick 1</div>
-      <div class="row gap">
-        <div class="pill warn" id="serverClock">00:00</div>
-        <button id="btnForceEnd" class="btn danger" data-admin-only="true">강제 종료</button>
-      </div>
+    <div class="au-grid-2 tight">
+      <article class="panel" id="teamSpreadsheet">
+        <h3>팀 리스트</h3>
+        <div class="tbl-scroll tall">
+          <table class="tbl sheet" id="teamSheet">
+            <colgroup>
+              <col style="width:70px"><col style="width:70px"><col style="width:70px">
+              <col style="width:110px">
+              <col style="width:180px"><col style="width:180px"><col style="width:180px"><col style="width:180px"><col style="width:180px">
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="3" scope="colgroup">포인트</th>
+                <th rowspan="2" scope="col">구분</th>
+                <th rowspan="2" scope="col">팀장</th>
+                <th rowspan="2" scope="col">팀원1</th>
+                <th rowspan="2" scope="col">팀원2</th>
+                <th rowspan="2" scope="col">팀원3</th>
+                <th rowspan="2" scope="col">팀원4</th>
+              </tr>
+              <tr>
+                <th scope="col">초기</th>
+                <th scope="col">사용</th>
+                <th scope="col">잔여</th>
+              </tr>
+            </thead>
+            <tbody id="teamSheetBody">
+              <c:forEach begin="1" end="8" var="t">
+                <tr data-team="${t}">
+                  <td class="num init" rowspan="4">0</td>
+                  <td class="num used" rowspan="4">0</td>
+                  <td class="num left" rowspan="4">0</td>
+                  <td class="sec">닉네임</td>
+                  <td class="leader nick">-</td>
+                  <td class="m1 nick">-</td>
+                  <td class="m2 nick">-</td>
+                  <td class="m3 nick">-</td>
+                  <td class="m4 nick">-</td>
+                </tr>
+                <tr data-team="${t}">
+                  <td class="sec">낙찰가</td>
+                  <td class="leader point">-</td>
+                  <td class="m1 point">-</td>
+                  <td class="m2 point">-</td>
+                  <td class="m3 point">-</td>
+                  <td class="m4 point">-</td>
+                </tr>
+                <tr data-team="${t}">
+                  <td class="sec">티어</td>
+                  <td class="leader tier">-</td>
+                  <td class="m1 tier">-</td>
+                  <td class="m2 tier">-</td>
+                  <td class="m3 tier">-</td>
+                  <td class="m4 tier">-</td>
+                </tr>
+                <tr data-team="${t}">
+                  <td class="sec">주포지션</td>
+                  <td class="leader pos">-</td>
+                  <td class="m1 pos">-</td>
+                  <td class="m2 pos">-</td>
+                  <td class="m3 pos">-</td>
+                  <td class="m4 pos">-</td>
+                </tr>
+              </c:forEach>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel" id="playerPanel">
+        <h3>입찰 콘솔</h3>
+        <div class="console">
+			<div class="kv-row">
+			  <div class="kv"><span class="k">현재가</span><span class="v" id="currentPrice">0</span></div>
+			  <div class="kv"><span class="k">남은시간</span><span class="v" id="countdown">--</span></div>
+			  <div class="kv"><span class="k">내 잔액</span><span class="v" id="myBudget">0</span></div>
+			</div>
+			<div class="row top controls">
+			  <div class="ig">
+			    <input type="number" id="bidAmount" min="0" step="10" class="input-number"/>
+			    <button class="btn primary" id="btnBid">입찰</button>
+			    <button class="btn danger" id="btnAllin">올인</button>
+			  </div>
+			</div>
+			<div class="row sm quickline">
+			  <button class="btn sm" data-inc="10" type="button">+10</button>
+			  <button class="btn sm" data-inc="20" type="button">+20</button>
+			  <button class="btn sm" data-inc="50" type="button">+50</button>
+			</div>
+			<div class="hint">입찰 단위: 10~100 +10 / 100~400 +20 / 400이상 +50</div>
+			<div class="err" id="bidErr" hidden></div>
+        </div>
+
+        <h3 style="margin-top:14px">경매 선수 리스트</h3>
+        <div class="tbl-scroll tall players">
+          <table class="tbl sheet" id="playerTable">
+			<colgroup>
+			  <col style="width:56px">
+			  <col style="width:280px">
+			  <col style="width:100px">
+			  <col style="width:90px">
+			  <col style="width:90px">
+			  <col style="width:100px">
+			</colgroup>
+			<thead>
+			  <tr>
+			    <th>#</th><th>닉네임</th><th>티어</th><th>주</th><th>부</th><th>낙찰</th>
+			  </tr>
+			</thead>
+			<tbody id="playerBody">
+			  <c:forEach begin="1" end="40" var="i">
+			    <tr data-row="${i}">
+			      <td>${i}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+			    </tr>
+			  </c:forEach>
+			</tbody>
+          </table>
+        </div>
+      </article>
     </div>
-    <div class="grid-3">
-      <article class="panel" id="targetPanel">
-        <h3>대상 선수</h3>
-        <div class="player">
-          <div class="player-name" id="mNick">-</div>
-          <div class="player-meta" id="mMeta">티어 · 포지션</div>
-          <div class="price"><span>현재가</span><strong id="currentPrice">0</strong></div>
-          <div class="timer" id="countdown">--:--</div>
-        </div>
-      </article>
-      <article class="panel" id="bidPanel">
-        <h3>입찰</h3>
-        <div class="budget">내 잔액 <strong id="myBudget">0</strong></div>
-        <div class="row gap">
-          <input type="number" id="bidAmount" min="0" step="10" class="input-number"/>
-          <button class="btn primary" id="btnBid">입찰</button>
-        </div>
-        <div class="row gap quick">
-          <button class="btn" data-inc="10" type="button">+10</button>
-          <button class="btn" data-inc="20" type="button">+20</button>
-          <button class="btn" data-inc="50" type="button">+50</button>
-        </div>
-        <div class="row end">
-          <button class="btn success" id="btnAssign" data-admin-only="true">낙찰 확정</button>
-        </div>
-      </article>
-      <article class="panel" id="teamBoard">
-        <h3>팀 보드</h3>
-        <table class="tbl" id="teamTable">
-          <thead><tr><th>팀</th><th>잔액</th><th>TOP</th><th>JG</th><th>MID</th><th>AD</th><th>SUP</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </article>
-    </div>
-    <article class="panel" id="eventFeed">
-      <h3>실시간 로그</h3>
-      <ul class="feed" id="feedList"></ul>
-    </article>
   </section>
 </div>
 
@@ -83,7 +158,6 @@
 
 <link rel="stylesheet" href="<c:url value='/resources/css/auction.css'/>">
 
-<!-- 고스트(관리자)일 땐 준비 버튼 숨김 -->
 <style>
   body.admin #btnReady { display: none !important; }
 </style>
@@ -91,26 +165,21 @@
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
-<!-- 컨텍스트 패스 (항상 끝에 / 포함) -->
 <script>var CTX = "<c:url value='/'/>";</script>
 
 <script>
 (function($){
   "use strict";
 
-  // ✅ JSP가 직접 절대경로를 주입 (컨텍스트 패스/슬래시 문제 방지)
   var URLS = {
     ws: "<c:url value='/ws-auction'/>",
     restore: "<c:url value='/api/auction/restore'/>",
-    auctionBase: "<c:url value='/api/auction/'/>" // 뒤에 code 붙여서 사용
+    auctionBase: "<c:url value='/api/auction/'/>"
   };
-  // 디버그: 현재 사용 경로 확인
-  try { console.log("[AUCTION URLS]", URLS); } catch(e){}
 
   var STOMP=null, STOMP_SUB=null, RECONNECT_TIMER=null, RECONNECT_WAIT=300, MAX_WAIT=5000;
   var G={ code:null, aucSeq:null, nick:null, role:null };
 
-  // --- 새로고침 감지 플래그 ---
   window.addEventListener("pagehide", function(){
     try { sessionStorage.setItem("auc.reloading","1"); } catch(e){}
   });
@@ -167,7 +236,6 @@
 
   function connectStomp(){
     if(STOMP && STOMP.connected) { subscribeLobby(); return; }
-    // ✅ SockJS도 절대경로 사용
     var sock = new SockJS(URLS.ws);
     STOMP = Stomp.over(sock);
     STOMP.debug = null;
@@ -235,20 +303,18 @@
       var role = (res && res.data && res.data.role) ? res.data.role : (res && res.payload && res.payload.role) ? res.payload.role: null;
       G.role = role;
 
-      /* 고스트면: body.admin 부여해서 관리자 전용 요소 보이기 */
       if (G.role === 'ADMIN_GHOST') {
         try { document.body.classList.add('admin'); } catch(e){}
       }
 
       try{
         sessionStorage.setItem("auc.last", JSON.stringify({code:code, nick:nick}));
-        if (G.role) sessionStorage.setItem("auc.role", G.role); // 고스트 유지 복구용
+        if (G.role) sessionStorage.setItem("auc.role", G.role);
       }catch(e){}
       G.nick=nick; afterJoin(code);
     }).fail(function(xhr){ alert("서버 오류 발생" + (xhr && xhr.status ? " ("+xhr.status+")" : "")); });
   });
 
-  // 준비 토글
   $("#btnReady").on("click", function(){
     if(!G.aucSeq){ alert("세션 없음"); return; }
     var isReady = $("#btnReady").data("ready") === true;
@@ -287,7 +353,6 @@
 		    data: '{}'
 		  }).done(function(r){
 		    if (r && r.success) {
-		      // 상태 전환 반영 (예: 상태 표시 텍스트 변경)
 		    } else {
 		      alert(r && r.error ? r.error.msg : '시작 실패');
 		    }
@@ -301,7 +366,6 @@
     try { isReload = sessionStorage.getItem("auc.reloading")==="1"; } catch(e){}
     let cached=null; try{ cached = JSON.parse(sessionStorage.getItem("auc.last")||"null"); }catch(e){}
 
-    /* 새로고침 복구: 저장된 role이 고스트면 관리자 표시 */
     try {
       var savedRole = sessionStorage.getItem("auc.role");
       if (savedRole === 'ADMIN_GHOST') { document.body.classList.add('admin'); G.role = savedRole; }
