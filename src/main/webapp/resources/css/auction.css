@@ -65,9 +65,11 @@
 #auctionApp #leaderList li .offline{color:#9096a6}
 #auctionApp[data-state="STEP2"] .row.end{padding-top:10px}
 #auctionApp[data-state="STEP3"] .au-status-badge{background:#101c12;color:#58d68d}
-#auctionApp [data-admin-only="true"]{display:none}
-body.admin #auctionApp [data-admin-only="true"]{display:inline-flex}
+
+#auctionApp [data-admin-only="true"]{display:none !important;}
+body.admin #auctionApp [data-admin-only="true"]{display:inline-flex !important;}
+body.admin #auctionApp #btnReady{display:none !important;}
+
 #auctionApp .is-disabled{opacity:.6;cursor:not-allowed}
 #auctionApp #btnStart {background:#2ea66f;color:#fff;font-weight:700;}
 #auctionApp #btnStart:hover {background:#249a5a;border-color:#1f834d;}
-

@@ -83,6 +83,11 @@
 
 <link rel="stylesheet" href="<c:url value='/resources/css/auction.css'/>">
 
+<!-- 고스트(관리자)일 땐 준비 버튼 숨김 -->
+<style>
+  body.admin #btnReady { display: none !important; }
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
@@ -96,14 +101,14 @@
   // ✅ JSP가 직접 절대경로를 주입 (컨텍스트 패스/슬래시 문제 방지)
   var URLS = {
     ws: "<c:url value='/ws-auction'/>",
-    restore: "<c:url value='api/auction/restore'/>",
-    auctionBase: "<c:url value='api/auction/'/>" // 뒤에 code 붙여서 사용
+    restore: "<c:url value='/api/auction/restore'/>",
+    auctionBase: "<c:url value='/api/auction/'/>" // 뒤에 code 붙여서 사용
   };
   // 디버그: 현재 사용 경로 확인
   try { console.log("[AUCTION URLS]", URLS); } catch(e){}
 
   var STOMP=null, STOMP_SUB=null, RECONNECT_TIMER=null, RECONNECT_WAIT=300, MAX_WAIT=5000;
-  var G={ code:null, aucSeq:null, nick:null };
+  var G={ code:null, aucSeq:null, nick:null, role:null };
 
   // --- 새로고침 감지 플래그 ---
   window.addEventListener("pagehide", function(){
@@ -147,7 +152,7 @@
     if(!STOMP || !STOMP.connected || !G.aucSeq) return;
     if(STOMP_SUB) { try{ STOMP_SUB.unsubscribe(); }catch(e){} STOMP_SUB=null; }
     STOMP_SUB = STOMP.subscribe("/topic/lobby."+G.aucSeq, function(frame){
-      try { var msg = JSON.parse(frame.body||"{}"); renderLobby(msg); } catch(e){}
+      try { var msg = JSON.parse(frame.body||"{}");  if (msg && msg.status === 'ING') { setStep('STEP3'); return; }renderLobby(msg); } catch(e){}
     });
   }
 
@@ -227,7 +232,18 @@
       if(!res || res.success!==true){
         alert(res && res.error ? (res.error.msg||"입장 실패") : "입장 실패"); return;
       }
-      try{ sessionStorage.setItem("auc.last", JSON.stringify({code:code, nick:nick})); }catch(e){}
+      var role = (res && res.data && res.data.role) ? res.data.role : (res && res.payload && res.payload.role) ? res.payload.role: null;
+      G.role = role;
+
+      /* 고스트면: body.admin 부여해서 관리자 전용 요소 보이기 */
+      if (G.role === 'ADMIN_GHOST') {
+        try { document.body.classList.add('admin'); } catch(e){}
+      }
+
+      try{
+        sessionStorage.setItem("auc.last", JSON.stringify({code:code, nick:nick}));
+        if (G.role) sessionStorage.setItem("auc.role", G.role); // 고스트 유지 복구용
+      }catch(e){}
       G.nick=nick; afterJoin(code);
     }).fail(function(xhr){ alert("서버 오류 발생" + (xhr && xhr.status ? " ("+xhr.status+")" : "")); });
   });
@@ -256,6 +272,7 @@
       try{
         sessionStorage.removeItem("auc.last");
         sessionStorage.removeItem("auc.reloading");
+        sessionStorage.removeItem("auc.role");
       }catch(e){}
       disconnectStomp();
       location.reload();
@@ -263,17 +280,32 @@
   });
 
   $("#btnStart").on("click", function(){
-    if(!G.aucSeq){ alert("세션 없음"); return; }
-    ensureConnectedThen(function(){
-      try{ STOMP.send("/app/lobby."+G.aucSeq+".start", {}, ""); }
-      catch(e){ alert("전송 실패"); }
-    });
+	  $.ajax({
+		    url: URLS.auctionBase + encodeURIComponent(G.code) + '/lobby/start',
+		    type: 'POST',
+		    contentType: 'application/json',
+		    data: '{}'
+		  }).done(function(r){
+		    if (r && r.success) {
+		      // 상태 전환 반영 (예: 상태 표시 텍스트 변경)
+		    } else {
+		      alert(r && r.error ? r.error.msg : '시작 실패');
+		    }
+		  }).fail(function(){
+		    alert('시작 요청 오류');
+		  });
   });
 
   function tryRestore(){
     var isReload = false;
     try { isReload = sessionStorage.getItem("auc.reloading")==="1"; } catch(e){}
     let cached=null; try{ cached = JSON.parse(sessionStorage.getItem("auc.last")||"null"); }catch(e){}
+
+    /* 새로고침 복구: 저장된 role이 고스트면 관리자 표시 */
+    try {
+      var savedRole = sessionStorage.getItem("auc.role");
+      if (savedRole === 'ADMIN_GHOST') { document.body.classList.add('admin'); G.role = savedRole; }
+    } catch(e){}
 
     if(isReload && cached && cached.code && cached.nick){
       try{ sessionStorage.removeItem("auc.reloading"); }catch(e){}

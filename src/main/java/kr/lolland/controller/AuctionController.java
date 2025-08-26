@@ -26,6 +26,13 @@ public class AuctionController {
         this.auctionService = auctionService;
         this.msg = msg;
     }
+    
+    private static final java.util.Set<String> ADMIN_WHITELIST =
+            new java.util.HashSet<String>(java.util.Arrays.asList("admin", "tjdgns"));
+
+    private static boolean isAdminNick(String nick) {
+        return nick != null && ADMIN_WHITELIST.contains(nick.trim().toLowerCase(java.util.Locale.ROOT));
+    }
 
     @PostMapping("/{code}/lobby/join")
     public Map<String, Object> joinLobby(@PathVariable("code") String code,
@@ -39,27 +46,46 @@ public class AuctionController {
         if (auc == null) return resp(false, "존재하지 않는 입장 코드");
 
         String status = String.valueOf(auc.get("A_STATUS"));
-        if (!"WAIT".equals(status)) return resp(false, "입장할 수 없는 상태입니다.");
+        if (!"WAIT".equals(status)&&!"ING".equals(status)) return resp(false, "입장 불가 상태입니다.");
 
         Long aucSeq = ((Number) auc.get("SEQ")).longValue();
-        boolean leaderOk = auctionService.existsLeaderNick(aucSeq, nick);
-        if (!leaderOk) return resp(false, "참가 자격이 없습니다. 닉네임을 확인하세요.");
 
-        // 온라인 표시
-        auctionService.markLeaderOnline(aucSeq, nick, "Y");
+        // ======== [추가] 관리자 고스트 분기 ========
+        if (isAdminNick(nick)) {
+            // DB 변경 없음 (AUC_MEMBER 기록 X)
+            session.setAttribute("AUC_SEQ", aucSeq);
+            session.setAttribute("AUC_CODE", code);
+            session.setAttribute("NICK", nick);
+            session.setAttribute("ROLE", "ADMIN_GHOST");
+        } else {
+            // ======== 기존 리더 입장 로직 그대로 유지 ========
+            if (!auctionService.existsLeaderNick(aucSeq, nick)) {
+                return resp(false, "참가 자격이 없습니다. 닉네임을 확인하세요.");
+            }
+            auctionService.markLeaderOnline(aucSeq, nick, "Y"); // DB 반영
+            session.setAttribute("AUC_SEQ", aucSeq);
+            session.setAttribute("AUC_CODE", code);
+            session.setAttribute("NICK", nick);
+            session.setAttribute("ROLE", "LEADER");
+        }
 
-        // 세션 세팅
-        session.setAttribute("AUC_SEQ", aucSeq);
-        session.setAttribute("AUC_CODE", code);
-        session.setAttribute("NICK", nick);
-        session.setAttribute("ROLE", "LEADER");
-
-        // ✅ 입장 즉시 스냅샷 브로드캐스트
+        // ✅ 입장 즉시 스냅샷 브로드캐스트 (기존 유지)
         Map<String,Object> snap = auctionService.getLobbySnapshot(aucSeq);
         msg.convertAndSend("/topic/lobby."+aucSeq, snap);
 
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new java.util.HashMap<String, Object>();
         data.put("aucSeq", aucSeq);
+        data.put("code", code);
+        data.put("nick", nick);
+        data.put("role", session.getAttribute("ROLE"));
+        
+        // 현재 경매 상태 포함 (기존 유지)
+        Map<String, Object> auc2 = auctionService.getAucByRandomCode(code);
+        if (auc2 != null) data.put("status", auc2.get("A_STATUS"));
+
+        // 스냅샷 키(leaderCnt/readyCnt)도 여전히 포함 (기존 유지)
+        data.putAll(auctionService.getLobbySnapshot(aucSeq));
+
         return resp(true, null, data);
     }
 
@@ -146,4 +172,43 @@ public class AuctionController {
 
         return resp(true, null, data);
     }
+    
+    @PostMapping("/{code}/lobby/start")
+    public Map<String, Object> startAuction(@PathVariable("code") String code, HttpSession session) {
+        Object sAucSeq = session.getAttribute("AUC_SEQ");
+        Object sCode   = session.getAttribute("AUC_CODE");
+        Object sRole   = session.getAttribute("ROLE");
+        if (sAucSeq == null || sCode == null || sRole == null) return resp(false, "세션 없음");
+        if (!String.valueOf(sCode).equals(code)) return resp(false, "코드 불일치");
+        if (!"ADMIN_GHOST".equals(String.valueOf(sRole))) return resp(false, "권한 없음");
+
+        Map<String, Object> auc = auctionService.getAucByRandomCode(code);
+        if (auc == null) return resp(false, "경매 없음");
+        if (!"WAIT".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "WAIT 상태에서만 시작 가능");
+
+        Long aucSeq = ((Number) sAucSeq).longValue();
+        Map<String,Object> snap = auctionService.getLobbySnapshot(aucSeq);
+        int onlineCnt = (snap.get("onlineCnt") instanceof Number) ? ((Number)snap.get("onlineCnt")).intValue() : 0;
+        int readyCnt  = (snap.get("readyCnt")  instanceof Number) ? ((Number)snap.get("readyCnt")).intValue()  : 0;
+        if (onlineCnt <= 0) return resp(false, "모든 인원이 온라인이 아닙니다.");
+        if (onlineCnt != readyCnt) return resp(false, "모든 인원이 준비완료가 아닙니다.");
+
+        // 상태 전환: WAIT -> ING
+        auctionService.startAuction(aucSeq);
+
+        // 1) 스냅샷 갱신 브로드캐스트 (기존)
+        Map<String,Object> snap2 = auctionService.getLobbySnapshot(aucSeq);
+        msg.convertAndSend("/topic/lobby."+aucSeq, snap2);
+
+        // 2) 상태 전환 브로드캐스트 (추가) → 클라이언트가 STEP3로 전환하도록 힌트
+        Map<String,Object> stateMsg = new java.util.HashMap<>();
+        stateMsg.put("status", "ING");
+        stateMsg.put("aucSeq", aucSeq);
+        stateMsg.put("code", code);
+        msg.convertAndSend("/topic/lobby."+aucSeq, stateMsg); // ★ 추가
+
+        return resp(true, null, null);
+    }
+
+    
 }

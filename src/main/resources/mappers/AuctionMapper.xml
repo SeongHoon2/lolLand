@@ -55,21 +55,13 @@
     ORDER BY NO IS NULL, NO ASC, NICK ASC
   </select>
 
-  <select id="countLeadersOnline" resultType="int">
-    SELECT COUNT(1)
-    FROM lolland.AUC_MEMBER
-    WHERE AUC_SEQ = #{aucSeq}
-      AND LEADERFLG = 'Y'
-      AND ONLINE_YN = 'Y'
-  </select>
-
   <!-- READY 토글(팀장만) -->
   <update id="toggleReady">
     UPDATE lolland.AUC_MEMBER
     SET READY_YN = CASE WHEN READY_YN='Y' THEN 'N' ELSE 'Y' END,
         UPD_DTM  = NOW()
     WHERE AUC_SEQ = #{aucSeq}
-      AND NICK    = #{nick}
+      AND NICK    = BINARY #{nick}
       AND LEADERFLG = 'Y'
   </update>
 

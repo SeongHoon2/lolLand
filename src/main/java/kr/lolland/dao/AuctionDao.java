@@ -15,8 +15,6 @@ public interface AuctionDao {
 
     List<Map<String, Object>> selectLeaders(@Param("aucSeq") Long aucSeq);
 
-    int countLeadersOnline(@Param("aucSeq") Long aucSeq);
-
     int toggleReady(@Param("aucSeq") Long aucSeq, @Param("nick") String nick);
 
     int countActiveAuctions();

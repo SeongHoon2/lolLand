@@ -25,6 +25,10 @@ public class AuctionMessageController {
     public void ready(@DestinationVariable Long aucSeq, SimpMessageHeaderAccessor headers) {
         String nick = (String) headers.getSessionAttributes().get("NICK");
         if (nick == null) return;
+        
+        String role = (String) headers.getSessionAttributes().get("ROLE");
+        if (!"LEADER".equals(role)) return;
+        
         auctionService.markLeaderReady(aucSeq, nick, "Y");
         Map<String,Object> snap = auctionService.getLobbySnapshot(aucSeq);
         msg.convertAndSend("/topic/lobby."+aucSeq, snap);
@@ -42,6 +46,10 @@ public class AuctionMessageController {
                         SimpMessageHeaderAccessor headers) {
         String nick = (String) headers.getSessionAttributes().get("NICK");
         if (nick == null) return;
+        
+        String role = (String) headers.getSessionAttributes().get("ROLE");
+        if (!"LEADER".equals(role)) return;
+        
         auctionService.setLeaderReady(aucSeq, nick, "N");
 
         Map<String,Object> snap = auctionService.getLobbySnapshot(aucSeq);

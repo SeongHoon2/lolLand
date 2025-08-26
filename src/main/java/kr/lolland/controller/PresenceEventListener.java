@@ -48,11 +48,13 @@ public class PresenceEventListener {
 
         Long aucSeq = (Long) sess.get("AUC_SEQ");
         String nick = (String) sess.get("NICK");
+        String role = (String) sess.get("ROLE");
         if (aucSeq == null || nick == null) return;
 
-        // 브라우저가 꺼지거나 끊기면 오프라인 + 준비 해제
-        auctionService.markLeaderOnline(aucSeq, nick, "N");
-        auctionService.markLeaderReady(aucSeq, nick, "N"); // 아래 3) 참고
+        if ("LEADER".equals(role)) {
+            auctionService.markLeaderOnline(aucSeq, nick, "N");
+            auctionService.markLeaderReady(aucSeq, nick, "N");
+        }
 
         Map<String,Object> snap = auctionService.getLobbySnapshot(aucSeq);
         msg.convertAndSend("/topic/lobby."+aucSeq, snap);
