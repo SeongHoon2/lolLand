@@ -185,13 +185,16 @@
   });
 
   function setStep(step){
-    $("#auctionApp").attr("data-state", step);
-    document.body.setAttribute("data-state", step);
-    $(".step").hide();
-    if(step==="STEP1") $("#step1").show();
-    if(step==="STEP2") $("#step2").show();
-    if(step==="STEP3") $("#step3").show();
-  }
+	  $("#auctionApp").attr("data-state", step);
+	  document.body.setAttribute("data-state", step);
+	  $(".step").hide();
+	  if(step==="STEP1") $("#step1").show();
+	  if(step==="STEP2") $("#step2").show();
+	  if(step==="STEP3") {$("#step3").show();
+	  // G.code가 아직 없을 수도 있으니, 100ms 후 재시도
+	  if (G.code) loadStep3(); else setTimeout(function(){ if(G.code) loadStep3(); }, 120);
+	  }
+	}
 
   function renderLobby(data){
     var leaders = (data && data.leaders) || [];
@@ -277,10 +280,16 @@
       const data = snap && snap.data || {};
       renderLobby(data);
       const st = data.status || "WAIT";
+      // 1) 먼저 세팅
+      G.code   = code;
+      G.aucSeq = data.aucSeq || G.aucSeq;
+      // 2) 그 다음 스텝
       setStep(st==="ING" ? "STEP3" : "STEP2");
-      G.code = code; G.aucSeq = data.aucSeq || G.aucSeq;
+      // 3) STEP3면 스냅샷 강제 호출(예방적)
+      if (st === "ING") { loadStep3(); }
       connectStomp();
     }).fail(function(){
+      // 실패했어도 G.code는 이미 있음 → 최소한 연결은 유지
       setStep("STEP2");
       connectStomp();
     });
@@ -388,9 +397,14 @@
     $.getJSON(URLS.restore).done(function(res){
       const data = res && res.data;
       if (res && res.success===true && data){
+        G.aucSeq = data.aucSeq;
+        G.code   = data.code;
+        G.nick   = data.nick;
         renderLobby(data);
+     	// 2) 그 다음 스텝 전환
         setStep((data.status==="ING") ? "STEP3" : "STEP2");
-        G.aucSeq = data.aucSeq; G.code = data.code; G.nick = data.nick;
+        // 3) STEP3면 스냅샷 강제 호출(예방적)
+        if (data.status === "ING") { loadStep3(); }
         connectStomp();
       } else if(cached && cached.code && cached.nick){
         $.ajax({
@@ -423,6 +437,77 @@
   }
 
   $(function(){ tryRestore(); });
+
+  function loadStep3(){
+	  $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/step3/snapshot")
+	   .done(function(res){
+	     if(!res || res.success!==true){ alert(res && res.error ? res.error.msg : "스냅샷 실패"); return; }
+	     var data = res.data || {};
+	     renderTeamSheet(data.teams || []);
+	     renderPlayerTable(data.players || []);
+	     // 내 잔액 초기 세팅(팀장 닉과 매칭)
+	     var me = (data.teams||[]).find(function(t){ return String(t.LEADER_NICK) === String(G.nick); });
+	     $("#myBudget").text(me ? (me.BUDGET_LEFT||0) : 0);
+	     $("#currentPrice").text(0);
+	     $("#countdown").text("--");
+	     $("#bidAmount").val(0);
+	   })
+	   .fail(function(xhr){ alert("스냅샷 호출 오류" + (xhr && xhr.status ? " ("+xhr.status+")" : "")); });
+	}
+
+  function renderTeamSheet(teams){
+	  // teams: 서버가 랜덤 순번 ORDER_NO 포함해 내려줌 (최대 8팀 가정)
+	  // JSP에는 8개 블록이 미리 렌더되어 있음: data-team="1".."8"
+	  for (var i=1;i<=8;i++){
+	    var t = teams[i-1] || null;
+	    var $rows = $('#teamSheetBody').find('tr[data-team="'+i+'"]');
+	    var budget = t ? (t.BUDGET||0) : 0;
+	    var left   = t ? (t.BUDGET_LEFT||0) : 0;
+	    var used   = t ? (t.USED||0) : 0;
+
+	    // 1행: 닉네임 줄
+	    $rows.eq(0).find('td.init').text(budget);
+	    $rows.eq(0).find('td.used').text(used);
+	    $rows.eq(0).find('td.left').text(left);
+	    $rows.eq(0).find('td.leader.nick').text(t ? t.LEADER_NICK : '-');
+	    $rows.eq(0).find('td.m1.nick,td.m2.nick,td.m3.nick,td.m4.nick').text('-');
+
+	    // 2행: 낙찰가 줄
+	    $rows.eq(1).find('td.leader.point,td.m1.point,td.m2.point,td.m3.point,td.m4.point').text('-');
+
+	    // 3행: 티어 줄
+	    $rows.eq(2).find('td.leader.tier').text(t ? (t.LEADER_TIER||'-') : '-');
+
+	    // 4행: 주포지션 줄
+	    $rows.eq(3).find('td.leader.pos').text(t ? (t.LEADER_MROLE||'-') : '-');
+
+	    // 구분 칸에 순번 표시(가독용): "닉네임(순번 n)" 처럼 꾸미려면 아래 예시
+	    $rows.eq(0).find('td.sec').text('닉네임');
+	  }
+	}
+
+	function renderPlayerTable(players){
+	  // 항상 40행 유지 (기존 마크업에 data-row=1..40 존재)
+	  for (var i=1;i<=40;i++){
+	    var p = players[i-1] || null;
+	    var $tr = $('#playerBody').find('tr[data-row="'+i+'"]');
+	    if (p){
+	      $tr.find('td').eq(0).text(i);
+	      $tr.find('td').eq(1).text(p.NICK || '-');
+	      $tr.find('td').eq(2).text(p.TIER || '-');
+	      $tr.find('td').eq(3).text(p.MROLE || '-');
+	      $tr.find('td').eq(4).text(p.SROLE || '-');
+	      $tr.find('td').eq(5).text('-'); // 낙찰가 칸 초기화
+	    } else {
+	      $tr.find('td').eq(0).text(i);
+	      $tr.find('td').eq(1).text('-');
+	      $tr.find('td').eq(2).text('-');
+	      $tr.find('td').eq(3).text('-');
+	      $tr.find('td').eq(4).text('-');
+	      $tr.find('td').eq(5).text('-');
+	    }
+	  }
+	}
 
 })(window.jQuery || window.$);
 </script>

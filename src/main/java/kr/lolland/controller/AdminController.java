@@ -36,18 +36,16 @@ public class AdminController {
             String keyPath;
             String osName = System.getProperty("os.name").toLowerCase();
             if (osName.contains("win")) {
-            	keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";  // main
+            	//keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";  // main
             	//keyPath = "C:/Users/znfmf/Downloads/test/lolLandKey.json"; // sub
-            	//keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
+            	keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
             } else {
                 keyPath = "/opt/etc/keys/lolLandKey.json";
             }
             NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-            GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(keyPath))
-                    .createScoped(Collections.singletonList(SheetsScopes.SPREADSHEETS));
-            Sheets service = new Sheets.Builder(httpTransport, jsonFactory, new HttpCredentialsAdapter(credentials))
-                    .setApplicationName("LolLand Auction System").build();
+            GoogleCredentials credentials = GoogleCredentials.fromStream(new FileInputStream(keyPath)).createScoped(Collections.singletonList(SheetsScopes.SPREADSHEETS));
+            Sheets service = new Sheets.Builder(httpTransport, jsonFactory, new HttpCredentialsAdapter(credentials)).setApplicationName("LolLand Auction System").build();
  
             String spreadsheetId = "1P-I6ZnQbkjaJ2yl7zaGnv8A4t9luP3fQLFnRDuD4wQE";
             String range = "Auction!B3:G42";

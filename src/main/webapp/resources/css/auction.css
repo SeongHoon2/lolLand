@@ -171,3 +171,10 @@ body[data-state="STEP3"] #auctionApp.container{
 /* 스크롤바 스타일(웹킷) */
 #auctionApp #step3 .tbl-scroll::-webkit-scrollbar{height:10px;width:10px}
 #auctionApp #step3 .tbl-scroll::-webkit-scrollbar-thumb{background:#2a2f3a;border-radius:10px}
+
+
+#auctionApp #step3 #teamSheet td.point:not(.num),
+#auctionApp #step3 #teamSheet td.tier,
+#auctionApp #step3 #teamSheet td.pos {
+  color: #fff !important;
+}

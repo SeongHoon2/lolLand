@@ -210,5 +210,15 @@ public class AuctionController {
         return resp(true, null, null);
     }
 
+    @GetMapping("/{code}/step3/snapshot")
+    public Map<String,Object> step3Snapshot(@PathVariable("code") String code){
+        Map<String, Object> auc = auctionService.getAucByRandomCode(code);
+        if (auc == null) return resp(false, "존재하지 않는 경매 코드");
+        if (!"ING".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "ING 상태가 아님");
+
+        Long aucSeq = ((Number)auc.get("SEQ")).longValue();
+        Map<String,Object> data = auctionService.getStep3Snapshot(aucSeq);
+        return resp(true, null, data);
+    }
     
 }

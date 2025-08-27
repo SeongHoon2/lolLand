@@ -98,4 +98,60 @@
     AND NICK    = #{nick}
     AND LEADERFLG = 'Y'
 </update>
+
+<!-- 리더가 아닌 선수 목록 (경매 대상) -->
+<select id="selectNonLeaderPlayers" resultType="map">
+  SELECT
+    NO, NICK, TIER, MROLE, SROLE
+  FROM lolland.AUC_MEMBER
+  WHERE AUC_SEQ = #{aucSeq}
+    AND LEADERFLG = 'N'
+  ORDER BY COALESCE(NO, 9999), NICK
+</select>
+
+<!-- 리더를 AUC_TEAM으로 보충(차등 포인트=POINT, 없으면 1000) -->
+<insert id="insertMissingTeamsFromLeaders">
+  INSERT INTO lolland.AUC_TEAM (AUC_CD, LEADER_NICK, BUDGET, BUDGET_LEFT)
+  SELECT m.AUC_SEQ, m.NICK,
+         CASE WHEN COALESCE(m.POINT,0)=0 THEN 1000 ELSE m.POINT END AS BUDGET,
+         CASE WHEN COALESCE(m.POINT,0)=0 THEN 1000 ELSE m.POINT END AS BUDGET_LEFT
+    FROM lolland.AUC_MEMBER m
+    LEFT JOIN lolland.AUC_TEAM t
+      ON t.AUC_CD = m.AUC_SEQ AND t.LEADER_NICK = m.NICK
+   WHERE m.AUC_SEQ = #{aucSeq}
+     AND m.LEADERFLG = 'Y'
+     AND t.TEAM_ID IS NULL
+</insert>
+
+<!-- 팀 목록 -->
+<select id="selectTeamsByAuc" resultType="map">
+  SELECT TEAM_ID, LEADER_NICK, BUDGET, BUDGET_LEFT
+  FROM lolland.AUC_TEAM
+  WHERE AUC_CD = #{aucSeq}
+  ORDER BY LEADER_NICK
+</select>
+
+<!-- STEP3_INIT 이벤트 (랜덤 순번 저장/재사용) -->
+<select id="selectLatestEventByType" resultType="map">
+  SELECT EVENT_ID, TYPE, PAYLOAD, TS
+  FROM lolland.AUC_EVENT_LOG
+  WHERE AUC_CD = #{aucSeq} AND TYPE = #{type}
+  ORDER BY EVENT_ID DESC
+  LIMIT 1
+</select>
+
+<insert id="insertEvent">
+  INSERT INTO lolland.AUC_EVENT_LOG (AUC_CD, TYPE, PAYLOAD)
+  VALUES (#{aucSeq}, #{type}, CAST(#{payload} AS JSON))
+</insert>
+
+<select id="selectLeaderDetails" resultType="map">
+  SELECT TEAM_ID, m.NICK, m.TIER, m.MROLE, m.SROLE
+  FROM lolland.AUC_MEMBER m
+  JOIN lolland.AUC_TEAM t
+    ON t.AUC_CD = m.AUC_SEQ AND t.LEADER_NICK = m.NICK
+  WHERE m.AUC_SEQ = #{aucSeq}
+    AND m.LEADERFLG = 'Y'
+</select>
+
 </mapper>

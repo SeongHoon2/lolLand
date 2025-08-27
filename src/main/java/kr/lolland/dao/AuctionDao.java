@@ -24,4 +24,16 @@ public interface AuctionDao {
     int markLeaderReady(@Param("aucSeq") Long aucSeq, @Param("nick") String nick, @Param("readyYn") String readyYn);
     
     int setLeaderReady(@Param("aucSeq") Long aucSeq, @Param("nick") String nick, @Param("readyYn") String readyYn);
+    
+    List<Map<String, Object>> selectNonLeaderPlayers(@Param("aucSeq") Long aucSeq);
+
+    int insertMissingTeamsFromLeaders(@Param("aucSeq") Long aucSeq);
+
+    List<Map<String, Object>> selectTeamsByAuc(@Param("aucSeq") Long aucSeq);
+
+    Map<String,Object> selectLatestEventByType(@Param("aucSeq") Long aucSeq, @Param("type") String type);
+    
+    int insertEvent(@Param("aucSeq") Long aucSeq, @Param("type") String type, @Param("payload") String payloadJson);
+
+    List<Map<String,Object>> selectLeaderDetails(@Param("aucSeq") Long aucSeq);
 }
