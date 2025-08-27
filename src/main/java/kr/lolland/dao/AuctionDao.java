@@ -36,4 +36,45 @@ public interface AuctionDao {
     int insertEvent(@Param("aucSeq") Long aucSeq, @Param("type") String type, @Param("payload") String payloadJson);
 
     List<Map<String,Object>> selectLeaderDetails(@Param("aucSeq") Long aucSeq);
+    
+    int insertRound(@Param("aucSeq") Long aucSeq, @Param("roundNo") int roundNo);
+    
+    Map<String,Object> selectRoundByNo(@Param("aucSeq") Long aucSeq, @Param("roundNo") int roundNo);
+    
+    int updateRoundStatus(@Param("roundId") Long roundId, @Param("status") String status);
+    
+    List<Map<String,Object>> selectPlayersForPick(@Param("aucSeq") Long aucSeq);
+    
+    int insertPick(@Param("roundId") Long roundId, @Param("aucSeq") Long aucSeq,@Param("pickNo") int pickNo, @Param("targetNick") String nick);
+
+    Map<String,Object> selectNextReadyPick(@Param("aucSeq") Long aucSeq);
+    
+    int beginPick(@Param("pickId") Long pickId);
+    
+    Map<String,Object> selectPickById(@Param("pickId") Long pickId);
+
+    Map<String,Object> selectTeamById(@Param("teamId") Long teamId);
+
+    int insertBid(@Param("aucSeq") Long aucSeq, @Param("pickId") Long pickId,@Param("teamId") Long teamId, @Param("nick") String nick,@Param("amount") int amount, @Param("allin") String allin);
+
+    int updatePickHighest(@Param("pickId") Long pickId, @Param("amount") int amount,@Param("teamId") Long teamId, @Param("version") int version);
+
+    int skipPick(@Param("pickId") Long pickId);
+    
+    int incrementSkip(@Param("pickId") Long pickId);
+    
+    int assignPick(@Param("pickId") Long pickId);
+
+    int updateTeamBudget(@Param("teamId") Long teamId, @Param("delta") int delta);
+    
+    int insertTeamMember(@Param("teamId") Long teamId, @Param("aucSeq") Long aucSeq,@Param("nick") String nick, @Param("price") int price, @Param("pickId") Long pickId);
+
+    Map<String,Object> selectMaxPickNo(@Param("roundId") Long roundId);
+    
+    int appendRequeuedPick(@Param("roundId") Long roundId, @Param("aucSeq") Long aucSeq,@Param("targetNick") String targetNick, @Param("nextNo") int nextNo);
+
+	Map<String, Object> selectCurrentBiddingPick(Long aucSeq);
+
+	Long findTeamIdByLeader(@Param("aucSeq") Long aucSeq, @Param("nick")   String nick);
+
 }
