@@ -110,7 +110,10 @@
             <div class="kv"><span class="k">대상</span><span class="v" id="currentTarget">-</span></div>
             <div class="kv"><span class="k">현재가</span><span class="v" id="currentPrice">0</span></div>
             <div class="kv"><span class="k">남은시간</span><span class="v" id="countdown">--</span></div>
-            <div class="kv"><span class="k">내 잔액</span><span class="v" id="myBudget">0</span></div>
+            <div class="kv"><span class="k">내 잔액</span>
+              <span class="v" id="myBudget">0</span>
+              <span id="myBudgetHold" class="muted" style="margin-left:6px;"></span>
+            </div>
           </div>
           <div class="row top controls">
             <div class="ig">
@@ -167,30 +170,17 @@
 
 <link rel="stylesheet" href="<c:url value='/resources/css/auction.css'/>">
 
+<!-- ★ 수정: ‘팔림/진행’ 시각 강조를 보장하기 위한 경량 스타일(없으면 추가) -->
 <style>
-  body.admin #btnReady { display: none !important; }
-
-  /* 2×2 레이아웃 강제 */
-  #auctionApp #step3 .kv-row{
-    display:grid;
-    grid-template-columns: 1fr 1fr;
-    gap:8px;
-  }
-  /* 대상 텍스트 … 처리 */
-  #auctionApp #step3 .console .kv .v#currentTarget{
-    display:block;
-    min-width:0;
-    max-width:100%;
-    overflow:hidden;
-    white-space:nowrap;
-    text-overflow:ellipsis;
-    text-align:right;
-  }
-  /* 진행 선수 하이라이트 */
-  #auctionApp #playerBody tr.current{
-    background: rgba(77,163,255,.16);
-  }
+  /* 진행 중 */
+  #playerTable tr.current td{background:rgba(77,163,255,.12)}
+  /* 최고입찰 표시 */
+  #playerTable tr.leading{opacity:.8}
+  /* 낙찰 완료(팔림) */
+  #playerTable tr.sold td{background:rgba(209,82,82,.14)}
+  #playerTable tr.won td{text-decoration:overline}
 </style>
+<!-- /수정 -->
 
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
@@ -513,19 +503,17 @@
 
       $rows.eq(0).find('td.sec').text('닉네임');
     }
-	
-	// 팀ID → 행 index(1..8) 매핑 저장 + 내 팀 ID 기억
-	G.teamRowById = {};
-	G.myTeamId = null;
-	for (var i=1;i<=8;i++){
-	  var t = teams[i-1] || null;
-	  if (t && typeof t.TEAM_ID !== 'undefined') {
-	    G.teamRowById[String(t.TEAM_ID)] = i;
-	    if (String(t.LEADER_NICK) === String(G.nick)) {
-	      G.myTeamId = t.TEAM_ID;
-	    }
-	  }
-	}
+
+    // TEAM_ID → 행 index 매핑
+    G.teamRowById = {};
+    G.myTeamId = null;
+    for (var i=1;i<=8;i++){
+      var t = teams[i-1] || null;
+      if (t && typeof t.TEAM_ID !== 'undefined') {
+        G.teamRowById[String(t.TEAM_ID)] = i;
+        if (String(t.LEADER_NICK) === String(G.nick)) G.myTeamId = t.TEAM_ID;
+      }
+    }
   }
 
   function renderPlayerTable(players){
@@ -539,6 +527,7 @@
         $tr.find('td').eq(3).text(p.MROLE || '-');
         $tr.find('td').eq(4).text(p.SROLE || '-');
         $tr.find('td').eq(5).text('-');
+        $tr.removeClass('sold won leading current'); // 초기화
       } else {
         $tr.find('td').eq(0).text(i);
         $tr.find('td').eq(1).text('-');
@@ -546,6 +535,7 @@
         $tr.find('td').eq(3).text('-');
         $tr.find('td').eq(4).text('-');
         $tr.find('td').eq(5).text('-');
+        $tr.removeClass('sold won leading current');
       }
     }
   }
@@ -578,8 +568,6 @@
     });
   }
 
-  var LAST_PICK_ID = null;
-
   function updateAuctionConsole(s){
     if (!s) return;
 
@@ -587,10 +575,13 @@
     if (typeof s.targetNick === 'string') $("#currentTarget").text(s.targetNick);
     if (typeof s.highestBid === 'number') $("#currentPrice").text(s.highestBid);
 
-    // pick 변경 시 내 입력값 리셋
+    // pick 변경 시 초기화
     if (s.pickId && s.pickId !== LAST_PICK_ID) {
       LAST_PICK_ID = s.pickId;
-      $("#bidAmount").val(0); // ★ 다음 차례 넘어가면 0원으로
+      G.currentPickId = s.pickId;
+      $("#bidAmount").val(0);
+      $("#playerBody tr").removeClass("leading current");
+      $("#myBudgetHold").text("");
     }
 
     // 남은 시간
@@ -617,26 +608,56 @@
       });
     }
 
-    // 낙찰/유찰 확정 스냅샷 처리
+    // 진행 중: 우측 표에 현재가 반영(좌측은 확정 때만)
+    if (s.targetNick && typeof s.highestBid === 'number') {
+      $("#playerBody tr").each(function(){
+        var $tr = $(this);
+        var $tds = $tr.find("td");
+        if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
+          $tds.eq(5).text(s.highestBid);
+          $tr.addClass("leading");
+        } else {
+          $tr.removeClass("leading");
+        }
+      });
+    }
+
+    // 내 잔액 프리뷰(가상)
+    if (G.myTeamId && s.highestTeam && typeof s.highestBid === 'number') {
+      if (String(G.myTeamId) === String(s.highestTeam)) {
+        var currentLeft = parseInt($("#myBudget").text()||"0",10);
+        $("#myBudgetHold").text("(가상: " + Math.max(0, currentLeft - s.highestBid) + ")");
+      } else {
+        $("#myBudgetHold").text("");
+      }
+    }
+
+    // ===== 낙찰/유찰 확정 처리 =====
+    if (s.assigned === true || s.assigned === false || s.requeued === true) {
+      // 진행 표시 제거
+      $("#playerBody tr").removeClass("leading current");
+    }
+
+    // ✅ 낙찰 확정: 좌측 팀시트 반영 + 우측 ‘sold’ 표시
     if (s.assigned === true) {
-      // 1) 선수표 낙찰가 반영 + 약간 흐리게
-      if (s.targetNick) {
+      // teamId / targetNick 누락 시 안전하게 전면 갱신
+      if (!s.teamId || !s.targetNick) {
+        loadStep3();
+      } else {
+        // 우측 표: 낙찰가 + 시각적 ‘sold’
         $("#playerBody tr").each(function(){
           var $tds = $(this).find("td");
           if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
             $tds.eq(5).text(s.price != null ? s.price : "-");
-            $(this).addClass("won");  // CSS로 살짝 어둡게
+            $(this).addClass("won sold");
             return false;
           }
         });
-      }
 
-      // 2) 팀시트에 팀원1→4 순으로 채우기 + 낙찰가 라인도 채우기
-      if (s.teamId && s.targetNick) {
+        // 좌측 팀시트: 해당 팀의 빈 칸에 배치 + 가격 기입
         var rowIdx = G.teamRowById ? G.teamRowById[String(s.teamId)] : null;
         if (rowIdx != null) {
           var $rows = $('#teamSheetBody').find('tr[data-team="'+rowIdx+'"]');
-          // 닉네임 줄(1행)
           var $nickCells = $rows.eq(0).find('td.m1.nick,td.m2.nick,td.m3.nick,td.m4.nick');
           var $pointCells= $rows.eq(1).find('td.m1.point,td.m2.point,td.m3.point,td.m4.point');
           for (var i=0;i<4;i++){
@@ -647,59 +668,55 @@
             }
           }
         }
-      }
 
-      // 3) 내 팀이면 잔액 갱신
-      if (G.myTeamId && String(G.myTeamId) === String(s.teamId) && typeof s.teamBudgetLeft === 'number') {
-        $("#myBudget").text(s.teamBudgetLeft);
-        // 팀시트 좌상단 잔액/사용도 업데이트(선택)
-        var rowIdx2 = G.teamRowById[String(G.myTeamId)];
-        if (rowIdx2 != null) {
-          var $rows2 = $('#teamSheetBody').find('tr[data-team="'+rowIdx2+'"]');
-          var init = parseInt($rows2.eq(0).find('td.init').text()||"0",10);
-          var left = s.teamBudgetLeft;
-          var used = Math.max(0, init - left);
-          $rows2.eq(0).find('td.left').text(left);
-          $rows2.eq(0).find('td.used').text(used);
+        // 내 팀이면 잔액/좌상단 수치 갱신
+        if (G.myTeamId && String(G.myTeamId) === String(s.teamId) && typeof s.teamBudgetLeft === 'number') {
+          $("#myBudget").text(s.teamBudgetLeft);
+          var rowIdx2 = G.teamRowById[String(G.myTeamId)];
+          if (rowIdx2 != null) {
+            var $rows2 = $('#teamSheetBody').find('tr[data-team="'+rowIdx2+'"]');
+            var init = parseInt($rows2.eq(0).find('td.init').text()||"0",10);
+            var left = s.teamBudgetLeft;
+            var used = Math.max(0, init - left);
+            $rows2.eq(0).find('td.left').text(left);
+            $rows2.eq(0).find('td.used').text(used);
+          }
         }
       }
+      $("#myBudgetHold").text("");
     }
 
-    // 다음 타겟 안내(서버가 nextPickId/nextTarget 내려줄 때)
+    // 다음 타겟 안내
     if (s.nextPickId) {
       $("#currentPrice").text(0);
       $("#currentTarget").text(String(s.nextTarget||"-"));
+      // ★ 안전망: 다음 픽으로 넘어갈 때 전체 동기화
+      loadStep3(); /* ★ 수정 */
     }
 
-    // (선택) 컨트롤 활성화 갱신
+    // ===== 컨트롤(+10/+20/+50) 활성화: 마이너스는 항상 활성 =====
     if (s.pickId) {
       $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.pickId + "/controls")
         .done(function(r){
           if (!r || r.success!==true) return;
           var c = r.data || {};
-          $(".quickline .btn").addClass("is-disabled").prop("disabled", true);
+
+          // (+) 버튼만 서버 응답에 따라 토글
+          $(".quickline:not(.minusline) .btn").addClass("is-disabled").prop("disabled", true);
           (c.enabledIncs || []).forEach(function(x){
-            $(".quickline .btn[data-inc='"+x+"']").removeClass("is-disabled").prop("disabled", false);
+            $(".quickline:not(.minusline) .btn[data-inc='"+x+"']").removeClass("is-disabled").prop("disabled", false);
           });
+
+          // (–) 버튼은 항상 사용 가능 (현재가 아래로 못 내려가게는 아래 onClick에서 보정)
+          $(".minusline .btn").removeClass("is-disabled").prop("disabled", false); /* ★ 수정 */
+
+          // 올인/입찰 버튼 기본 보정
+          $("#btnAllin").prop("disabled", !c.canAllin);
         });
     }
   }
 
-
-  // 진행선수 하이라이트
-  function markCurrentPlayer(targetNick){
-    $("#playerTable tr.current").removeClass("current");
-    if (!targetNick) return;
-    $("#playerBody tr").each(function(){
-      var $tdNick = $(this).find('td').eq(1);
-      if ($tdNick.text().trim() === String(targetNick).trim()) {
-        $(this).addClass("current");
-        return false;
-      }
-    });
-  }
-
-  // 퀵 증감(누적 가능, 현재가 이하로는 내려가지 않음)
+  // 퀵 증감 (최소값: 현재가)
   $(document).on("click", ".quickline .btn", function(){
     var inc = parseInt($(this).data("inc"),10);
     if (isNaN(inc)) return;
@@ -707,7 +724,7 @@
     var now  = parseInt($("#bidAmount").val()||"0",10);
     if (!now || now < base) now = base;
     var next = now + inc;
-    if (next < base) next = base;
+    if (next < base) next = base; // 현재가 아래로는 못 내려감
     $("#bidAmount").val(next);
   });
 
@@ -731,7 +748,6 @@
       if (!res || res.success!==true){
         $("#bidErr").text((res && res.error && res.error.msg) ? res.error.msg : "입찰 실패").show();
       }
-      // 성공 시 상태는 STOMP 방송으로 updateAuctionConsole에서 갱신
     }).fail(function(){
       $("#bidErr").text("네트워크 오류로 입찰 실패").show();
     }).always(function(){
@@ -760,7 +776,5 @@
     });
   });
 
-  // 복구
-  tryRestore();
 })(window.jQuery || window.$);
 </script>

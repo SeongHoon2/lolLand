@@ -105,14 +105,18 @@ public class AuctionController {
 
         Long aucSeq = ((Number) sAucSeq).longValue();
         String nick = String.valueOf(sNick);
+        String role = String.valueOf(session.getAttribute("ROLE"));
 
-        // 오프라인 표시
-        auctionService.markLeaderOnline(aucSeq, nick, "N");
-        auctionService.setLeaderReady(aucSeq, nick, "N");
+        // 오프라인/레디 해제는 관리자 고스트가 아닐 때만
+        if (!"ADMIN_GHOST".equals(role)) {
+            auctionService.markLeaderOnline(aucSeq, nick, "N");
+            auctionService.setLeaderReady(aucSeq, nick, "N");
+        }
 
         session.removeAttribute("AUC_SEQ");
         session.removeAttribute("AUC_CODE");
         session.removeAttribute("NICK");
+        session.removeAttribute("ROLE"); // ← 추가: ROLE도 정리
 
         // 나가기 즉시 스냅샷 브로드캐스트
         Map<String,Object> snap = auctionService.getLobbySnapshot(aucSeq);
@@ -158,9 +162,12 @@ public class AuctionController {
         Long aucSeq = ((Number) sAucSeq).longValue();
         String code = String.valueOf(sCode);
         String nick = String.valueOf(sNick);
+        String role = String.valueOf(session.getAttribute("ROLE"));
 
-        // 새로고침으로 끊겼다가 다시 들어온 경우 ONLINE 다시 Y로
-        auctionService.markLeaderOnline(aucSeq, nick, "Y");
+        // 새로고침 재진입: 관리자 고스트가 아니면 ONLINE Y
+        if (!"ADMIN_GHOST".equals(role)) {
+            auctionService.markLeaderOnline(aucSeq, nick, "Y");
+        }
 
         Map<String, Object> data = new HashMap<>();
         data.put("aucSeq", aucSeq);
@@ -192,10 +199,14 @@ public class AuctionController {
 
         Long aucSeq = ((Number) sAucSeq).longValue();
         Map<String,Object> snap = auctionService.getLobbySnapshot(aucSeq);
+
+        int leaderCnt = (snap.get("leaderCnt") instanceof Number) ? ((Number)snap.get("leaderCnt")).intValue() : 0;
         int onlineCnt = (snap.get("onlineCnt") instanceof Number) ? ((Number)snap.get("onlineCnt")).intValue() : 0;
         int readyCnt  = (snap.get("readyCnt")  instanceof Number) ? ((Number)snap.get("readyCnt")).intValue()  : 0;
-        if (onlineCnt <= 0) return resp(false, "모든 인원이 온라인이 아닙니다.");
-        if (onlineCnt != readyCnt) return resp(false, "모든 인원이 준비완료가 아닙니다.");
+
+        if (leaderCnt == 0) return resp(false, "팀장이 없습니다.");
+        if (onlineCnt != leaderCnt) return resp(false, "모든 팀장이 온라인 상태가 아닙니다.");
+        if (readyCnt  != leaderCnt) return resp(false, "모든 팀장이 준비완료가 아닙니다.");
 
         // 상태 전환: WAIT -> ING
         auctionService.startAuction(aucSeq);
@@ -204,7 +215,7 @@ public class AuctionController {
         Map<String,Object> snap2 = auctionService.getLobbySnapshot(aucSeq);
         msg.convertAndSend("/topic/lobby."+aucSeq, snap2);
 
-        // 2) 상태 전환 브로드캐스트 → 클라이언트 STEP3 전환 유도
+        // 2) 상태 전환 브로드캐스트
         Map<String,Object> stateMsg = new java.util.HashMap<>();
         stateMsg.put("status", "ING");
         stateMsg.put("aucSeq", aucSeq);
@@ -227,29 +238,23 @@ public class AuctionController {
 
     @PostMapping("/{code}/step3/begin")
     public Map<String,Object> begin(@PathVariable String code, HttpSession s){
-        // 1) 권한 확인
         if (!"ADMIN_GHOST".equals(String.valueOf(s.getAttribute("ROLE")))) {
             return resp(false, "권한 없음");
         }
-        // 2) 상태 확인
         Map<String,Object> auc = auctionService.getAucByRandomCode(code);
         if (auc == null) return resp(false, "경매 없음");
         if (!"ING".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "ING 상태 아님");
         Long aucSeq = ((Number)auc.get("SEQ")).longValue();
 
-        // 이미 진행 중이면 현 스냅샷 방송 + 자동루프 보장
         Map<String,Object> current = auctionService.findCurrentPickSnapshot(aucSeq);
         if (current != null) {
             msg.convertAndSend("/topic/auc."+aucSeq+".state", current);
-            autoRunner.start(aucSeq); // 이미 돌고 있으면 내부에서 무시
+            autoRunner.start(aucSeq);
             return resp(true, null, current);
         }
 
-        // 첫 픽 오픈
         Map<String,Object> snap = auctionService.initRoundAndBeginFirstPick(aucSeq);
         msg.convertAndSend("/topic/auc."+aucSeq+".state", snap);
-
-        // 자동 진행 시작
         autoRunner.start(aucSeq);
 
         return resp(true, null, snap);
@@ -280,7 +285,6 @@ public class AuctionController {
         if (auc==null) return resp(false,"경매 없음");
         Long aucSeq = ((Number)auc.get("SEQ")).longValue();
 
-        // 관리자 테스트 편의를 위해 body.teamId 허용
         Long teamIdParam = body.get("teamId")==null ? null : ((Number)body.get("teamId")).longValue();
         Long teamId;
         try {
@@ -296,17 +300,12 @@ public class AuctionController {
         try {
             Map<String,Object> snap = auctionService.placeBid(aucSeq, pickId, teamId, nick, amount, allin);
             msg.convertAndSend("/topic/auc."+aucSeq+".state", snap);
-
-            // 입찰이 들어오면 7초 리셋 (오토러너에 위임)
             autoRunner.reset(aucSeq, ((Number)snap.get("pickId")).longValue(), 7);
-
             return resp(true, null, snap);
         } catch (Exception ex){
             return resp(false, ex.getMessage());
         }
     }
-
-    // ===== 내부 공용 =====
 
     private Long resolveTeamId(Long aucSeq, HttpSession s, Long overrideForAdmin) {
         String role = String.valueOf(s.getAttribute("ROLE"));

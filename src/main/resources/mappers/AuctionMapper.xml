@@ -3,7 +3,6 @@
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="kr.lolland.dao.AuctionDao">
 
- <!-- AUC_MAIN: RANDOMCODE/A_STATUS 사용 -->
   <select id="selectAucMainByRandomCode" resultType="map">
     SELECT
       SEQ,
@@ -18,7 +17,6 @@
     LIMIT 1
   </select>
 
-  <!-- 팀장 존재 여부 (LEADERFLG='Y') -->
   <select id="countLeaderByNick" resultType="int">
     SELECT COUNT(1)
     FROM lolland.AUC_MEMBER
@@ -27,17 +25,15 @@
       AND LEADERFLG = 'Y'
   </select>
 
-  <!-- 팀장 온라인 상태 갱신 -->
   <update id="updateLeaderOnline">
     UPDATE lolland.AUC_MEMBER
     SET ONLINE_YN = #{onlineYn},
         UPD_DTM   = NOW()
     WHERE AUC_SEQ = #{aucSeq}
-      AND NICK    = #{nick}
+      AND NICK    = #{nick} COLLATE utf8mb4_bin
       AND LEADERFLG = 'Y'
   </update>
 
-  <!-- 대기실 스냅샷: 팀장 목록/카운트 -->
   <select id="selectLeaders" resultType="map">
     SELECT
       NICK,
@@ -55,17 +51,15 @@
     ORDER BY NO IS NULL, NO ASC, NICK ASC
   </select>
 
-  <!-- READY 토글(팀장만) -->
   <update id="toggleReady">
     UPDATE lolland.AUC_MEMBER
     SET READY_YN = CASE WHEN READY_YN='Y' THEN 'N' ELSE 'Y' END,
         UPD_DTM  = NOW()
     WHERE AUC_SEQ = #{aucSeq}
-      AND NICK    =  #{nick}
+      AND NICK    =  #{nick} COLLATE utf8mb4_bin
       AND LEADERFLG = 'Y'
   </update>
 
-  <!-- 활성 경매 수: WAIT/ING 만 카운트 (USE_YN='Y' 권장) -->
   <select id="countActiveAuctions" resultType="int">
     SELECT COUNT(1)
     FROM lolland.AUC_MAIN
@@ -73,191 +67,186 @@
       AND USE_YN = 'Y'
   </select>
 
-  <!-- 경매 상태 변경 -->
   <update id="updateAucStatus">
     UPDATE lolland.AUC_MAIN
     SET A_STATUS = #{status},
         UPD_DTM  = NOW()
     WHERE SEQ = #{aucSeq}
   </update>
-  
+
   <update id="markLeaderReady">
-  UPDATE lolland.AUC_MEMBER
-  SET READY_YN = #{readyYn},
-      UPD_DTM  = NOW()
-  WHERE AUC_SEQ = #{aucSeq}
-    AND NICK    = #{nick}
-    AND LEADERFLG = 'Y'
-</update>
-  
+    UPDATE lolland.AUC_MEMBER
+    SET READY_YN = #{readyYn},
+        UPD_DTM  = NOW()
+    WHERE AUC_SEQ = #{aucSeq}
+      AND NICK    = #{nick} COLLATE utf8mb4_bin
+      AND LEADERFLG = 'Y'
+  </update>
+
   <update id="setLeaderReady">
-  UPDATE lolland.AUC_MEMBER
-  SET READY_YN = #{readyYn},
-      UPD_DTM  = NOW()
-  WHERE AUC_SEQ = #{aucSeq}
-    AND NICK    = #{nick}
-    AND LEADERFLG = 'Y'
-</update>
+    UPDATE lolland.AUC_MEMBER
+    SET READY_YN = #{readyYn},
+        UPD_DTM  = NOW()
+    WHERE AUC_SEQ = #{aucSeq}
+      AND NICK    = #{nick} COLLATE utf8mb4_bin
+      AND LEADERFLG = 'Y'
+  </update>
 
-<!-- 리더가 아닌 선수 목록 (경매 대상) -->
-<select id="selectNonLeaderPlayers" resultType="map">
-  SELECT
-    NO, NICK, TIER, MROLE, SROLE
-  FROM lolland.AUC_MEMBER
-  WHERE AUC_SEQ = #{aucSeq}
-    AND LEADERFLG = 'N'
-  ORDER BY COALESCE(NO, 9999), NICK
-</select>
+  <select id="selectNonLeaderPlayers" resultType="map">
+    SELECT
+      NO, NICK, TIER, MROLE, SROLE
+    FROM lolland.AUC_MEMBER
+    WHERE AUC_SEQ = #{aucSeq}
+      AND LEADERFLG = 'N'
+    ORDER BY COALESCE(NO, 9999), NICK
+  </select>
 
-<!-- 리더를 AUC_TEAM으로 보충(차등 포인트=POINT, 없으면 1000) -->
-<insert id="insertMissingTeamsFromLeaders">
-  INSERT INTO lolland.AUC_TEAM (AUC_CD, LEADER_NICK, BUDGET, BUDGET_LEFT)
-  SELECT m.AUC_SEQ, m.NICK,
-         CASE WHEN COALESCE(m.POINT,0)=0 THEN 1000 ELSE m.POINT END AS BUDGET,
-         CASE WHEN COALESCE(m.POINT,0)=0 THEN 1000 ELSE m.POINT END AS BUDGET_LEFT
+  <insert id="insertMissingTeamsFromLeaders">
+    INSERT INTO lolland.AUC_TEAM (AUC_CD, LEADER_NICK, BUDGET, BUDGET_LEFT)
+    SELECT m.AUC_SEQ, m.NICK,
+           CASE WHEN COALESCE(m.POINT,0)=0 THEN 1000 ELSE m.POINT END AS BUDGET,
+           CASE WHEN COALESCE(m.POINT,0)=0 THEN 1000 ELSE m.POINT END AS BUDGET_LEFT
+      FROM lolland.AUC_MEMBER m
+      LEFT JOIN lolland.AUC_TEAM t
+        ON t.AUC_CD = m.AUC_SEQ AND t.LEADER_NICK = m.NICK
+     WHERE m.AUC_SEQ = #{aucSeq}
+       AND m.LEADERFLG = 'Y'
+       AND t.TEAM_ID IS NULL
+  </insert>
+
+  <select id="selectTeamsByAuc" resultType="map">
+    SELECT TEAM_ID, LEADER_NICK, BUDGET, BUDGET_LEFT
+    FROM lolland.AUC_TEAM
+    WHERE AUC_CD = #{aucSeq}
+    ORDER BY LEADER_NICK
+  </select>
+
+  <select id="selectLatestEventByType" resultType="map">
+    SELECT EVENT_ID, TYPE, PAYLOAD, TS
+    FROM lolland.AUC_EVENT_LOG
+    WHERE AUC_CD = #{aucSeq} AND TYPE = #{type}
+    ORDER BY EVENT_ID DESC
+    LIMIT 1
+  </select>
+
+  <insert id="insertEvent">
+    INSERT INTO lolland.AUC_EVENT_LOG (AUC_CD, TYPE, PAYLOAD)
+    VALUES (#{aucSeq}, #{type}, CAST(#{payload} AS JSON))
+  </insert>
+
+  <select id="selectLeaderDetails" resultType="map">
+    SELECT TEAM_ID, m.NICK, m.TIER, m.MROLE, m.SROLE
     FROM lolland.AUC_MEMBER m
-    LEFT JOIN lolland.AUC_TEAM t
+    JOIN lolland.AUC_TEAM t
       ON t.AUC_CD = m.AUC_SEQ AND t.LEADER_NICK = m.NICK
-   WHERE m.AUC_SEQ = #{aucSeq}
-     AND m.LEADERFLG = 'Y'
-     AND t.TEAM_ID IS NULL
-</insert>
+    WHERE m.AUC_SEQ = #{aucSeq}
+      AND m.LEADERFLG = 'Y'
+  </select>
 
-<!-- 팀 목록 -->
-<select id="selectTeamsByAuc" resultType="map">
-  SELECT TEAM_ID, LEADER_NICK, BUDGET, BUDGET_LEFT
-  FROM lolland.AUC_TEAM
-  WHERE AUC_CD = #{aucSeq}
-  ORDER BY LEADER_NICK
-</select>
+  <insert id="insertRound">
+    INSERT INTO AUC_ROUND (AUC_CD, ROUND_NO, STATUS, START_TS)
+    VALUES (#{aucSeq}, #{roundNo}, 'READY', NOW())
+  </insert>
 
-<!-- STEP3_INIT 이벤트 (랜덤 순번 저장/재사용) -->
-<select id="selectLatestEventByType" resultType="map">
-  SELECT EVENT_ID, TYPE, PAYLOAD, TS
-  FROM lolland.AUC_EVENT_LOG
-  WHERE AUC_CD = #{aucSeq} AND TYPE = #{type}
-  ORDER BY EVENT_ID DESC
-  LIMIT 1
-</select>
+  <select id="selectRoundByNo" resultType="map">
+    SELECT * FROM AUC_ROUND WHERE AUC_CD=#{aucSeq} AND ROUND_NO=#{roundNo} LIMIT 1
+  </select>
 
-<insert id="insertEvent">
-  INSERT INTO lolland.AUC_EVENT_LOG (AUC_CD, TYPE, PAYLOAD)
-  VALUES (#{aucSeq}, #{type}, CAST(#{payload} AS JSON))
-</insert>
+  <update id="updateRoundStatus">
+    UPDATE AUC_ROUND
+    SET STATUS=#{status},
+        START_TS = CASE WHEN #{status}='ING' THEN NOW() ELSE START_TS END,
+        END_TS   = CASE WHEN #{status}='END' THEN NOW() ELSE END_TS END,
+        UPD_DTM=NOW()
+    WHERE ROUND_ID=#{roundId}
+  </update>
 
-<select id="selectLeaderDetails" resultType="map">
-  SELECT TEAM_ID, m.NICK, m.TIER, m.MROLE, m.SROLE
-  FROM lolland.AUC_MEMBER m
-  JOIN lolland.AUC_TEAM t
-    ON t.AUC_CD = m.AUC_SEQ AND t.LEADER_NICK = m.NICK
-  WHERE m.AUC_SEQ = #{aucSeq}
-    AND m.LEADERFLG = 'Y'
-</select>
+  <select id="selectPlayersForPick" resultType="map">
+    SELECT NO, NICK, TIER, MROLE, SROLE
+    FROM AUC_MEMBER
+    WHERE AUC_SEQ=#{aucSeq} AND LEADERFLG='N'
+    ORDER BY COALESCE(NO,9999), NICK
+  </select>
 
-<insert id="insertRound">
-  INSERT INTO AUC_ROUND (AUC_CD, ROUND_NO, STATUS, START_TS)
-  VALUES (#{aucSeq}, #{roundNo}, 'READY', NOW())
-</insert>
+  <insert id="insertPick">
+    INSERT INTO AUC_PICK (ROUND_ID, AUC_CD, PICK_NO, TARGET_NICK, STATUS)
+    VALUES (#{roundId}, #{aucSeq}, #{pickNo}, #{targetNick}, 'READY')
+  </insert>
 
-<select id="selectRoundByNo" resultType="map">
-  SELECT * FROM AUC_ROUND WHERE AUC_CD=#{aucSeq} AND ROUND_NO=#{roundNo} LIMIT 1
-</select>
+  <select id="selectNextReadyPick" resultType="map">
+    SELECT * FROM AUC_PICK WHERE AUC_CD=#{aucSeq} AND STATUS='READY'
+    ORDER BY PICK_NO ASC LIMIT 1
+  </select>
 
-<update id="updateRoundStatus">
-  UPDATE AUC_ROUND
-  SET STATUS=#{status},
-      START_TS = CASE WHEN #{status}='ING' THEN NOW() ELSE START_TS END,
-      END_TS   = CASE WHEN #{status}='END' THEN NOW() ELSE END_TS END,
-      UPD_DTM=NOW()
-  WHERE ROUND_ID=#{roundId}
-</update>
+  <update id="beginPick">
+    UPDATE AUC_PICK SET STATUS='BIDDING', START_TS=NOW(), UPD_DTM=NOW()
+    WHERE PICK_ID=#{pickId} AND STATUS='READY'
+  </update>
 
-<select id="selectPlayersForPick" resultType="map">
-  SELECT NO, NICK, TIER, MROLE, SROLE
-  FROM AUC_MEMBER
-  WHERE AUC_SEQ=#{aucSeq} AND LEADERFLG='N'
-  ORDER BY COALESCE(NO,9999), NICK
-</select>
+  <select id="selectPickById" resultType="map">
+    SELECT * FROM AUC_PICK WHERE PICK_ID=#{pickId} LIMIT 1
+  </select>
 
-<insert id="insertPick">
-  INSERT INTO AUC_PICK (ROUND_ID, AUC_CD, PICK_NO, TARGET_NICK, STATUS)
-  VALUES (#{roundId}, #{aucSeq}, #{pickNo}, #{targetNick}, 'READY')
-</insert>
+  <select id="selectTeamById" resultType="map">
+    SELECT * FROM AUC_TEAM WHERE TEAM_ID=#{teamId} LIMIT 1
+  </select>
 
-<select id="selectNextReadyPick" resultType="map">
-  SELECT * FROM AUC_PICK WHERE AUC_CD=#{aucSeq} AND STATUS='READY'
-  ORDER BY PICK_NO ASC LIMIT 1
-</select>
+  <insert id="insertBid">
+    INSERT INTO AUC_BID (AUC_CD,PICK_ID,TEAM_ID,NICK,AMOUNT,ALLIN_YN)
+    VALUES (#{aucSeq},#{pickId},#{teamId},#{nick},#{amount},#{allin})
+  </insert>
 
-<update id="beginPick">
-  UPDATE AUC_PICK SET STATUS='BIDDING', START_TS=NOW(), UPD_DTM=NOW()
-  WHERE PICK_ID=#{pickId} AND STATUS='READY'
-</update>
+  <update id="updatePickHighest">
+    UPDATE AUC_PICK
+    SET HIGHEST_BID=#{amount}, HIGHEST_TEAM=#{teamId}, VERSION=VERSION+1, UPD_DTM=NOW()
+    WHERE PICK_ID=#{pickId} AND VERSION=#{version} AND STATUS='BIDDING'
+  </update>
 
-<select id="selectPickById" resultType="map">
-SELECT * FROM AUC_PICK WHERE PICK_ID=#{pickId} LIMIT 1
-</select>
+  <update id="skipPick">
+    UPDATE AUC_PICK SET STATUS='SKIPPED', END_TS=NOW(), UPD_DTM=NOW()
+    WHERE PICK_ID=#{pickId} AND STATUS='BIDDING'
+  </update>
 
-<select id="selectTeamById" resultType="map">
-SELECT * FROM AUC_TEAM WHERE TEAM_ID=#{teamId} LIMIT 1
-</select>
+  <update id="incrementSkip">
+    UPDATE AUC_PICK SET SKIP_COUNT=SKIP_COUNT+1, UPD_DTM=NOW() WHERE PICK_ID=#{pickId}
+  </update>
 
-<insert id="insertBid">
-  INSERT INTO AUC_BID (AUC_CD,PICK_ID,TEAM_ID,NICK,AMOUNT,ALLIN_YN)
-  VALUES (#{aucSeq},#{pickId},#{teamId},#{nick},#{amount},#{allin})
-</insert>
+  <update id="assignPick">
+    UPDATE AUC_PICK SET STATUS='ASSIGNED', END_TS=NOW(), UPD_DTM=NOW()
+    WHERE PICK_ID=#{pickId} AND STATUS IN ('BIDDING','READY')
+  </update>
 
-<update id="updatePickHighest">
-  UPDATE AUC_PICK
-  SET HIGHEST_BID=#{amount}, HIGHEST_TEAM=#{teamId}, VERSION=VERSION+1, UPD_DTM=NOW()
-  WHERE PICK_ID=#{pickId} AND VERSION=#{version} AND STATUS='BIDDING'
-</update>
+  <update id="updateTeamBudget">
+    UPDATE AUC_TEAM SET BUDGET_LEFT=BUDGET_LEFT-#{delta}, UPD_DTM=NOW()
+    WHERE TEAM_ID=#{teamId} AND BUDGET_LEFT >= #{delta}
+  </update>
 
-<update id="skipPick">
-  UPDATE AUC_PICK SET STATUS='SKIPPED', END_TS=NOW(), UPD_DTM=NOW()
-  WHERE PICK_ID=#{pickId} AND STATUS='BIDDING'
-</update>
+  <insert id="insertTeamMember">
+    INSERT INTO AUC_TEAM_MEMBER (TEAM_ID, AUC_CD, NICK, POSITION, PRICE, PICK_ID)
+    VALUES (#{teamId}, #{aucSeq}, #{nick}, NULL, #{price}, #{pickId})
+  </insert>
 
-<update id="incrementSkip">
-  UPDATE AUC_PICK SET SKIP_COUNT=SKIP_COUNT+1, UPD_DTM=NOW() WHERE PICK_ID=#{pickId}
-</update>
+  <select id="selectMaxPickNo" resultType="map">
+    SELECT MAX(PICK_NO) AS MAX_NO FROM AUC_PICK WHERE ROUND_ID=#{roundId}
+  </select>
 
-<update id="assignPick">
-  UPDATE AUC_PICK SET STATUS='ASSIGNED', END_TS=NOW(), UPD_DTM=NOW()
-  WHERE PICK_ID=#{pickId} AND STATUS IN ('BIDDING','READY')
-</update>
+  <insert id="appendRequeuedPick">
+    INSERT INTO AUC_PICK (ROUND_ID, AUC_CD, PICK_NO, TARGET_NICK, STATUS)
+    VALUES (#{roundId}, #{aucSeq}, #{nextNo}, #{targetNick}, 'READY')
+  </insert>
 
-<update id="updateTeamBudget">
-  UPDATE AUC_TEAM SET BUDGET_LEFT=BUDGET_LEFT-#{delta}, UPD_DTM=NOW()
-  WHERE TEAM_ID=#{teamId} AND BUDGET_LEFT >= #{delta}
-</update>
+  <select id="selectCurrentBiddingPick" resultType="map">
+    SELECT * FROM lolland.AUC_PICK
+    WHERE AUC_CD = #{aucSeq} AND STATUS='BIDDING'
+    ORDER BY PICK_NO ASC LIMIT 1
+  </select>
 
-<insert id="insertTeamMember">
-  INSERT INTO AUC_TEAM_MEMBER (TEAM_ID, AUC_CD, NICK, POSITION, PRICE, PICK_ID)
-  VALUES (#{teamId}, #{aucSeq}, #{nick}, NULL, #{price}, #{pickId})
-</insert>
-
-<select id="selectMaxPickNo" resultType="map">
-  SELECT MAX(PICK_NO) AS MAX_NO FROM AUC_PICK WHERE ROUND_ID=#{roundId}
-</select>
-
-<insert id="appendRequeuedPick">
-  INSERT INTO AUC_PICK (ROUND_ID, AUC_CD, PICK_NO, TARGET_NICK, STATUS)
-  VALUES (#{roundId}, #{aucSeq}, #{nextNo}, #{targetNick}, 'READY')
-</insert>
-
-<select id="selectCurrentBiddingPick" resultType="map">
-  SELECT * FROM lolland.AUC_PICK
-  WHERE AUC_CD = #{aucSeq} AND STATUS='BIDDING'
-  ORDER BY PICK_NO ASC LIMIT 1
-</select>
-
-<select id="findTeamIdByLeader" resultType="long">
-  SELECT TEAM_ID
-  FROM lolland.AUC_TEAM
-  WHERE AUC_CD = #{aucSeq}
-    AND LEADER_NICK = #{nick} COLLATE utf8mb4_bin
-  LIMIT 1
-</select>
+  <select id="findTeamIdByLeader" resultType="long">
+    SELECT TEAM_ID
+    FROM lolland.AUC_TEAM
+    WHERE AUC_CD = #{aucSeq}
+      AND LEADER_NICK = #{nick} COLLATE utf8mb4_bin
+    LIMIT 1
+  </select>
 
 </mapper>
