@@ -170,11 +170,10 @@
 
 <link rel="stylesheet" href="<c:url value='/resources/css/auction.css'/>">
 
-<!-- 스타일: 낙찰 회색계열로 변경 -->
+<!-- 낙찰 색상(회색계열) -->
 <style>
   #playerTable tr.current td{background:rgba(77,163,255,.12)}
   #playerTable tr.leading{opacity:.8}
-  /* 🔁 회색계열 */
   #playerTable tr.sold td{background:rgba(150,155,165,.18)}
   #playerTable tr.won td{text-decoration:overline}
 </style>
@@ -546,12 +545,11 @@
     }
   }
 
-  // —— 유틸: 포커스 해제(다음 선수 전환 시 호출) ——
-  function clearTableFocus(){
+  /* ★ 포커스 전역 해제: 어떤 요소든 활성화되어 있으면 blur */
+  function clearActiveFocus(){
     try{
       var ae = document.activeElement;
-      if (!ae) return;
-      if ($(ae).closest('#playerPanel').length) { ae.blur(); }
+      if (ae && typeof ae.blur === 'function') ae.blur();
     }catch(e){}
   }
 
@@ -625,14 +623,16 @@
   function updateAuctionConsole(s){
     if (!s) return;
 
-    // 새 pick 시작 감지 → 포커스 해제
+    // 새 pick 시작 감지 → 포커스/금액 초기화
     if (s.pickId && s.pickId !== LAST_PICK_ID) {
       LAST_PICK_ID = s.pickId;
       G.currentPickId = s.pickId;
-      $("#bidAmount").val(0);
+
+      clearActiveFocus();                /* ★ 포커스 해제 */
+      $("#bidAmount").val(0);            /* ★ 금액 0으로 */
+      $("#currentPrice").text(0);        /* 표시도 0으로 */
       $("#playerBody tr").removeClass("leading current");
       $("#myBudgetHold").text("");
-      clearTableFocus(); /* ★ 포커스 해제 */
     }
 
     if (typeof s.targetNick === 'string') $("#currentTarget").text(s.targetNick);
@@ -672,7 +672,7 @@
       $("#playerBody tr").removeClass("leading current");
     }
 
-    // ✅ 낙찰 확정: 좌측 팀시트 갱신(닉/가격/티어/주포지션)
+    // 낙찰 확정 반영(좌측 시트/우측 행)
     if (s.assigned === true) {
       if (!s.teamId || !s.targetNick) {
         PENDING_HILITE = null;
@@ -692,14 +692,14 @@
           var $rows = $('#teamSheetBody').find('tr[data-team="'+rowIdx+'"]');
           var $nickCells = $rows.eq(0).find('td.m1.nick,td.m2.nick,td.m3.nick,td.m4.nick');
           var $pointCells= $rows.eq(1).find('td.m1.point,td.m2.point,td.m3.point,td.m4.point');
-          var $tierCells = $rows.eq(2).find('td.m1.tier,td.m2.tier,td.m3.tier,td.m4.tier');       /* ★ 추가 */
-          var $posCells  = $rows.eq(3).find('td.m1.pos,td.m2.pos,td.m3.pos,td.m4.pos');           /* ★ 추가 */
+          var $tierCells = $rows.eq(2).find('td.m1.tier,td.m2.tier,td.m3.tier,td.m4.tier');
+          var $posCells  = $rows.eq(3).find('td.m1.pos,td.m2.pos,td.m3.pos,td.m4.pos');
           for (var i=0;i<4;i++){
             if ($nickCells.eq(i).text().trim() === "-") {
               $nickCells.eq(i).text(s.targetNick);
               $pointCells.eq(i).text(s.price != null ? s.price : "-");
-              $tierCells.eq(i).text(s.targetTier || "-");    /* ★ 티어 채우기 */
-              $posCells.eq(i).text(s.targetMrole || "-");    /* ★ 주포지션 채우기 */
+              $tierCells.eq(i).text(s.targetTier || "-");
+              $posCells.eq(i).text(s.targetMrole || "-");
               break;
             }
           }
@@ -721,20 +721,21 @@
       $("#myBudgetHold").text("");
     }
 
-    // ===== 다음 타겟(다음 픽 오픈) 처리 =====
+    // ★★★ 다음 픽 오픈 (nextPickId) 시에도 포커스/금액/표시 전부 초기화
     if (s.nextPickId) {
-      clearTableFocus(); /* ★ 다음 선수 전환 시 포커스 해제 */
-
       G.currentPickId = s.nextPickId;
       LAST_PICK_ID    = s.nextPickId;
 
-      $("#currentPrice").text(0);
-      $("#currentTarget").text(String(s.nextTarget||"-"));
+      clearActiveFocus();            /* 포커스 해제 */
+      $("#bidAmount").val(0);        /* 금액 0 */
+      $("#currentPrice").text(0);    /* 현재가 0 */
+      $("#myBudgetHold").text("");   /* 가상 잔액 초기화 */
+      $("#playerBody tr").removeClass("leading current");
 
+      $("#currentTarget").text(String(s.nextTarget||"-"));
       if (typeof s.deadlineTs === 'number') setCountdown(s.deadlineTs);
 
       var ok = highlightCurrentByNick(s.nextTarget);
-
       $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.nextPickId + "/controls")
         .done(toggleControlsFromResp);
 
