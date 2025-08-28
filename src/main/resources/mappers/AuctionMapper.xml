@@ -249,4 +249,13 @@
     LIMIT 1
   </select>
 
+  <!-- ★ 추가: 선수 정보(티어/주포지션) -->
+  <select id="selectMemberByNick" resultType="map">
+    SELECT NICK, TIER, MROLE, SROLE
+    FROM lolland.AUC_MEMBER
+    WHERE AUC_SEQ = #{aucSeq}
+      AND NICK    = #{nick} COLLATE utf8mb4_bin
+    LIMIT 1
+  </select>
+
 </mapper>

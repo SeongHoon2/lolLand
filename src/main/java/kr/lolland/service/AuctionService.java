@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,14 +42,12 @@ public class AuctionService {
     public Map<String, Object> getLobbySnapshot(Long aucSeq){
         Map<String, Object> r = new HashMap<>();
 
-        // 리더 목록
         List<Map<String,Object>> leaders = auctionDao.selectLeaders(aucSeq);
         r.put("leaders", leaders);
 
-        // 집계
-        int leaderCnt = (leaders != null) ? leaders.size() : 0;   // 전체 리더 수
-        int readyCnt  = 0;                                        // READY_YN='Y' 수
-        int onlineCnt = 0;                                        // ONLINE_YN='Y' 수 (참고용)
+        int leaderCnt = (leaders != null) ? leaders.size() : 0;
+        int readyCnt  = 0;
+        int onlineCnt = 0;
 
         if (leaders != null) {
             for (Map<String,Object> m : leaders) {
@@ -61,12 +58,10 @@ public class AuctionService {
             }
         }
 
-        // 스냅샷 필드 채우기 (프론트가 이 키들을 씀)
         r.put("leaderCnt", leaderCnt);
         r.put("readyCnt",  readyCnt);
-        r.put("onlineCnt", onlineCnt); // 필요 없으면 제거해도 됨
+        r.put("onlineCnt", onlineCnt);
 
-        // 기존 유지
         r.put("viewers", new Object[0]);
         r.put("viewerCnt", 0);
 
@@ -105,7 +100,6 @@ public class AuctionService {
         List<Map<String,Object>> teams = auctionDao.selectTeamsByAuc(aucSeq);
         List<Map<String,Object>> players = auctionDao.selectNonLeaderPlayers(aucSeq);
 
-        // 리더 티어/포지션 정보 추가
         List<Map<String,Object>> leaderDetails = auctionDao.selectLeaderDetails(aucSeq);
         Map<Long, Map<String,Object>> leaderByTeamId = new HashMap<>();
         for (Map<String,Object> m : leaderDetails){
@@ -125,7 +119,6 @@ public class AuctionService {
             int left   = ((Number)base.get("BUDGET_LEFT")).intValue();
             base.put("USED", budget-left);
 
-            // 리더 세부정보 merge
             Map<String,Object> detail = leaderByTeamId.get(id);
             if(detail!=null){
                 base.put("LEADER_TIER",  detail.get("TIER"));
@@ -156,15 +149,13 @@ public class AuctionService {
                     for (Map<String,Object> t : teams) now.add(((Number)t.get("TEAM_ID")).longValue());
                     List<Long> casted = new ArrayList<>();
                     for (Number n : saved) casted.add(n.longValue());
-                    if (now.equals(new HashSet<>(casted))) return casted; // 구성 동일 시 재사용
+                    if (now.equals(new HashSet<>(casted))) return casted;
                 }
             } catch(Exception ignore){}
         }
-        // 생성
         List<Long> ids = new ArrayList<>();
         for (Map<String,Object> t : teams) ids.add(((Number)t.get("TEAM_ID")).longValue());
         Collections.shuffle(ids, new java.security.SecureRandom());
-        // 저장
         try{
             Map<String,Object> payload = new HashMap<>();
             payload.put("teamOrder", ids);
@@ -266,41 +257,42 @@ public class AuctionService {
         Number highestTeamN = (Number)pick.get("HIGHEST_TEAM");
 
         Map<String,Object> out = new HashMap<>();
-        if (highestTeamN == null) { // 무입찰
+        if (highestTeamN == null) {
             auctionDao.skipPick(pickId);
             auctionDao.incrementSkip(pickId);
             int skip = ((Number)auctionDao.selectPickById(pickId).get("SKIP_COUNT")).intValue();
-            if (skip >= 2) { // 0포 배정
+            if (skip >= 2) {
                 auctionDao.assignPick(pickId);
                 out.put("assigned", false);
-            } else { // 맨 뒤 재배치
+            } else {
                 int nextNo = 1 + ((Number)auctionDao.selectMaxPickNo(roundId).get("MAX_NO")).intValue();
                 auctionDao.appendRequeuedPick(roundId, aucSeq, target, nextNo);
                 out.put("requeued", true);
             }
-        } else { // 낙찰 확정
+        } else {
         	Long teamId = highestTeamN.longValue();
-            // 예산 차감
             if (auctionDao.updateTeamBudget(teamId, highest) == 0) throw new IllegalStateException("예산 부족/경합");
 
-            // 팀원 등록
             auctionDao.insertTeamMember(teamId, aucSeq, target, highest, pickId);
-
-            // 픽 상태 ASSIGNED
             auctionDao.assignPick(pickId);
 
-            // 팀 정보 재조회(남은 예산)
             Map<String,Object> team = auctionDao.selectTeamById(teamId);
             int left = ((Number)team.get("BUDGET_LEFT")).intValue();
+
+            // ★ 좌측 시트에 채울 추가 정보 조회
+            Map<String,Object> member = auctionDao.selectMemberByNick(aucSeq, target);
+            String targetTier  = member == null ? null : String.valueOf(member.get("TIER"));
+            String targetMrole = member == null ? null : String.valueOf(member.get("MROLE"));
 
             out.put("assigned", true);
             out.put("price", highest);
             out.put("teamId", teamId);
             out.put("targetNick", target);
             out.put("teamBudgetLeft", left);
-
-            // (선택) 팀장 닉 (프론트에서 내팀 매칭용)
             out.put("leaderNick", String.valueOf(team.get("LEADER_NICK")));
+            // ★ 추가 필드
+            if (targetTier != null)  out.put("targetTier", targetTier);
+            if (targetMrole != null) out.put("targetMrole", targetMrole);
         }
 
         Map<String,Object> next = auctionDao.selectNextReadyPick(aucSeq);
@@ -316,15 +308,13 @@ public class AuctionService {
         return out;
     }
     
- // 진행 중 픽이 있으면 스냅샷 반환, 없으면 null
     public Map<String,Object> findCurrentPickSnapshot(Long aucSeq){
-        Map<String,Object> pick = auctionDao.selectCurrentBiddingPick(aucSeq); // STATUS='BIDDING' 1건
+        Map<String,Object> pick = auctionDao.selectCurrentBiddingPick(aucSeq);
         if (pick == null) return null;
         Map<String,Object> snap = new HashMap<>();
         snap.put("pickId", pick.get("PICK_ID"));
         snap.put("targetNick", pick.get("TARGET_NICK"));
         snap.put("highestBid", ((Number)pick.get("HIGHEST_BID")).intValue());
-        // 남은시간은 서버 메모리 타이머를 쓰는 구조라면 runtime에서 계산, 없으면 임시로 now+7000
         snap.put("deadlineTs", System.currentTimeMillis()+7000);
         return snap;
     }
@@ -356,10 +346,7 @@ public class AuctionService {
         return snap;
     }
 
-    /** 입찰 시 마다 데드라인 연장/브로드캐스트용 헬퍼 (선택) */
     public long newDeadlineTs() {
         return System.currentTimeMillis()+7000;
     }
-
-
 }

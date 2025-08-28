@@ -12,16 +12,26 @@ import org.springframework.stereotype.Component;
 
 import kr.lolland.service.AuctionService;
 
+/**
+ * 경매 진행용 서버 타이머 러너 (경매당 1개 타이머)
+ * - 컨트롤러에서 /begin 시 start(...)
+ * - 입찰 성공 시 reset(..., pickId, 7) 로 연장
+ * - 타임아웃 시 finalizePick(...) → 다음 픽이 있으면 재스케줄, 없으면 라운드 종료
+ *
+ * 주의:
+ * - reset의 두 번째 인자는 반드시 "현재 진행 중인 pickId(Long)" 입니다.
+ * - 다음 픽이 열렸을 때도 "다음 픽의 pickId(Long)"로 갱신 후 재스케줄합니다.
+ */
 @Component
 public class AuctionAutoRunner {
 
     private final SimpMessagingTemplate msg;
     private final AuctionService auctionService;
 
-    private final ScheduledExecutorService ses = Executors.newScheduledThreadPool(2);
-    // aucSeq 별로 현재 진행 중인 타이머를 관리
+    // 경매별 현재 타이머
+    private final ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
     private final Map<Long, ScheduledFuture<?>> timers = new ConcurrentHashMap<>();
-    // aucSeq → 진행 중 pickId (데드라인 만료 시 동일 pick 이어야만 finalize)
+    // 경매별 현재 진행 중 pickId
     private final Map<Long, Long> currentPick = new ConcurrentHashMap<>();
 
     public AuctionAutoRunner(SimpMessagingTemplate msg, AuctionService auctionService) {
@@ -29,58 +39,109 @@ public class AuctionAutoRunner {
         this.auctionService = auctionService;
     }
 
-    /** 라운드를 시작하거나, 이미 돌고 있으면 무시 */
+    /**
+     * 경매 시작: 이미 BIDDING 중인 픽이 있다고 가정(컨트롤러가 스냅을 브로드캐스트함)
+     * - 서비스에서 현재 스냅샷을 읽어 pickId/deadlineTs 확보
+     * - deadlineTs가 없다면 now+7초로 기본값
+     */
     public synchronized void start(Long aucSeq) {
-        // 현재 진행 중 픽을 확인해서 기록만 함 (없으면 무시)
-        Map<String, Object> snap = auctionService.findCurrentPickSnapshot(aucSeq);
-        if (snap != null) {
-            Long pickId = ((Number) snap.get("pickId")).longValue();
+        try {
+            Map<String, Object> snap = auctionService.findCurrentPickSnapshot(aucSeq);
+            if (snap == null) {
+                cancel(aucSeq);
+                return;
+            }
+            Long pickId = toLong(snap.get("pickId"));
+            if (pickId == null) {
+                cancel(aucSeq);
+                return;
+            }
             currentPick.put(aucSeq, pickId);
+
+            long deadlineTs = toLong(snap.get("deadlineTs")) != null
+                    ? toLong(snap.get("deadlineTs"))
+                    : System.currentTimeMillis() + 7000L;
+
+            scheduleAt(aucSeq, deadlineTs);
+        } catch (Exception e) {
+            cancel(aucSeq);
         }
     }
 
-    /** 입찰이 들어올 때마다 7초로 연장 */
+    /**
+     * 입찰 시 데드라인 연장.
+     * @param aucSeq 경매 시퀀스
+     * @param pickId 반드시 Long(현재 진행 중 픽 id)
+     * @param seconds from now
+     */
     public synchronized void reset(Long aucSeq, Long pickId, int seconds) {
-        // 다른 픽으로 바뀐 경우를 대비해 갱신
-        currentPick.put(aucSeq, pickId);
+        try {
+            cancel(aucSeq);
+            if (pickId == null) return;
+            currentPick.put(aucSeq, pickId);
+            long deadlineTs = System.currentTimeMillis() + Math.max(0, seconds) * 1000L;
+            scheduleAt(aucSeq, deadlineTs);
+        } catch (Exception e) {
+            cancel(aucSeq);
+        }
+    }
 
-        // 기존 타이머 취소
-        ScheduledFuture<?> old = timers.remove(aucSeq);
-        if (old != null) old.cancel(false);
+    /** 경매 타이머 취소 */
+    public synchronized void cancel(Long aucSeq) {
+        ScheduledFuture<?> f = timers.remove(aucSeq);
+        if (f != null) {
+            try { f.cancel(false); } catch (Exception ignore) {}
+        }
+    }
 
-        // 새 타이머 예약
-        ScheduledFuture<?> f = ses.schedule(() -> onTimeout(aucSeq, pickId), seconds, TimeUnit.SECONDS);
+    /** 절대시각으로 스케줄 */
+    private synchronized void scheduleAt(Long aucSeq, long deadlineTs) {
+        long delayMs = Math.max(0L, deadlineTs - System.currentTimeMillis());
+        ScheduledFuture<?> f = exec.schedule(() -> onTimeout(aucSeq), delayMs, TimeUnit.MILLISECONDS);
         timers.put(aucSeq, f);
     }
 
-    /** 타임아웃(7초 종료) 시 호출 */
-    private void onTimeout(Long aucSeq, Long pickIdAtSchedule) {
+    /** 타임아웃 콜백: 현재 픽 마감 → 다음 픽 여부에 따라 재스케줄 또는 종료 */
+    private void onTimeout(Long aucSeq) {
         try {
-            // 최종적으로 같은 픽에 대해 타임아웃이 발생했는지 확인
-            Long cur = currentPick.get(aucSeq);
-            if (cur == null || !cur.equals(pickIdAtSchedule)) return;
+            Long pickId = currentPick.get(aucSeq);
+            if (pickId == null) {
+                cancel(aucSeq);
+                return;
+            }
 
-            // ★ 낙찰/유찰 확정
-            Map<String, Object> out = auctionService.finalizePick(aucSeq, pickIdAtSchedule);
-
-            // ★ 반드시 확정 결과를 방송 (assigned / price / teamId / targetNick / teamBudgetLeft / nextPickId …)
+            // 마감/낙찰 처리
+            Map<String, Object> out = auctionService.finalizePick(aucSeq, pickId);
+            // 상태 브로드캐스트 (프론트는 assigned===true일 때만 좌측 팀시트 갱신)
             msg.convertAndSend("/topic/auc." + aucSeq + ".state", out);
 
-            // 다음 픽이 열렸다면 currentPick 갱신 및 타이머 재기동
-            if (out.get("nextPickId") != null) {
-                Long nextPick = ((Number) out.get("nextPickId")).longValue();
-                currentPick.put(aucSeq, nextPick);
-                // 다음 픽은 오픈과 동시에 7초
-                reset(aucSeq, nextPick, 7);
+            // 다음 픽 열림 여부 확인
+            Long nextPickId = toLong(out.get("nextPickId"));
+            if (nextPickId != null) {
+                currentPick.put(aucSeq, nextPickId);
+                long nextDeadline = toLong(out.get("deadlineTs")) != null
+                        ? toLong(out.get("deadlineTs"))
+                        : System.currentTimeMillis() + 7000L;
+                scheduleAt(aucSeq, nextDeadline);
             } else {
                 // 라운드 종료
                 currentPick.remove(aucSeq);
-                ScheduledFuture<?> f = timers.remove(aucSeq);
-                if (f != null) f.cancel(false);
+                cancel(aucSeq);
+                Map<String, Object> done = new java.util.HashMap<>();
+                done.put("roundEnd", true);
+                msg.convertAndSend("/topic/auc." + aucSeq + ".state", done);
             }
         } catch (Exception e) {
-            // 실패 로그만 남기고 조용히 종료
-            e.printStackTrace();
+            // 에러 시 타이머만 정리 (다음 begin으로 복구 가능)
+            cancel(aucSeq);
         }
+    }
+
+    private static Long toLong(Object o) {
+        if (o == null) return null;
+        if (o instanceof Long) return (Long) o;
+        if (o instanceof Integer) return ((Integer) o).longValue();
+        if (o instanceof Number) return ((Number) o).longValue();
+        try { return Long.parseLong(String.valueOf(o)); } catch (Exception ignore) { return null; }
     }
 }

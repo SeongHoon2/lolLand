@@ -101,9 +101,8 @@ body[data-state="STEP3"] #auctionApp.container{
 
 /* 좌/우 테이블 컨테이너 */
 #auctionApp #step3 .tbl-scroll{overflow:visible;border:1px solid var(--border);border-radius:10px;background:#0e1218}
-#auctionApp #step3 .tbl-scroll.tall{max-height:none}
 /* 우측 선수 리스트는 스크롤 O */
-#auctionApp #step3 .tbl-scroll.tall.players{max-height:652px;overflow:auto}
+#auctionApp #step3 .tbl-scroll.tall.players{max-height:566px;overflow:auto}
 
 /* ===== 좌측 팀 시트 ===== */
 #auctionApp #step3 table.sheet{width:100%;border-collapse:collapse}
@@ -125,7 +124,7 @@ body[data-state="STEP3"] #auctionApp.container{
 #auctionApp #step3 td.point{color:var(--accent)}
 #auctionApp #step3 td.point.num{text-align:right}
 #auctionApp #step3 td.tier{color:#9ca3af}
-#auctionApp #step3 td.pos{color:#var(--accent-2)}
+#auctionApp #step3 td.pos { color: var(--accent-2, #4da3ff); }
 
 /* ===== 입찰 콘솔 ===== */
 #auctionApp #step3 .console{margin-top:14px;padding:14px;border:1px dashed var(--border);border-radius:10px}
@@ -210,9 +209,9 @@ body[data-state="STEP3"] #auctionApp.container{
 /* 낙찰 확정: 시각 강조 */
 #auctionApp #playerBody tr.won td { text-decoration: overline; }
 
-/* 낙찰 확정: 배경 색(“이미 팔림” 느낌) */
+/* 🔁 낙찰 확정: 회색계열 배경 */
 #auctionApp #playerBody tr.sold { 
-  background: rgba(255,107,107,0.14) !important; 
+  background: rgba(150,155,165,0.18) !important; 
 }
 
 /* 진행 중 현재가 표시 */

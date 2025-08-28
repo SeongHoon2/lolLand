@@ -170,17 +170,14 @@
 
 <link rel="stylesheet" href="<c:url value='/resources/css/auction.css'/>">
 
-<!-- ★ 수정: ‘팔림/진행’ 시각 강조를 보장하기 위한 경량 스타일(없으면 추가) -->
+<!-- 스타일: 낙찰 회색계열로 변경 -->
 <style>
-  /* 진행 중 */
   #playerTable tr.current td{background:rgba(77,163,255,.12)}
-  /* 최고입찰 표시 */
   #playerTable tr.leading{opacity:.8}
-  /* 낙찰 완료(팔림) */
-  #playerTable tr.sold td{background:rgba(209,82,82,.14)}
+  /* 🔁 회색계열 */
+  #playerTable tr.sold td{background:rgba(150,155,165,.18)}
   #playerTable tr.won td{text-decoration:overline}
 </style>
-<!-- /수정 -->
 
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
@@ -201,7 +198,8 @@
     auctionBase: "<c:url value='/api/auction/'/>"
   };
 
-  var G={ code:null, aucSeq:null, nick:null, role:null, currentPickId:null };
+  var G={ code:null, aucSeq:null, nick:null, role:null, currentPickId:null, teamRowById:null, myTeamId:null };
+  var PENDING_HILITE = null;
 
   window.addEventListener("pagehide", function(){
     try { sessionStorage.setItem("auc.reloading","1"); } catch(e){}
@@ -461,7 +459,7 @@
 
   $(function(){
     tryRestore();
-    $("#bidAmount").prop("readonly", true); // 금액은 퀵버튼으로만 변경
+    $("#bidAmount").prop("readonly", true);
   });
 
   function loadStep3(){
@@ -477,6 +475,15 @@
        $("#countdown").text("--");
        $("#currentTarget").text("-");
        $("#bidAmount").val(0);
+
+       if (PENDING_HILITE){
+         highlightCurrentByNick(PENDING_HILITE);
+         PENDING_HILITE = null;
+       }
+       if (G.currentPickId){
+         $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/controls")
+           .done(toggleControlsFromResp);
+       }
      })
      .fail(function(xhr){ alert("스냅샷 호출 오류" + (xhr && xhr.status ? " ("+xhr.status+")" : "")); });
   }
@@ -504,7 +511,6 @@
       $rows.eq(0).find('td.sec').text('닉네임');
     }
 
-    // TEAM_ID → 행 index 매핑
     G.teamRowById = {};
     G.myTeamId = null;
     for (var i=1;i<=8;i++){
@@ -527,7 +533,7 @@
         $tr.find('td').eq(3).text(p.MROLE || '-');
         $tr.find('td').eq(4).text(p.SROLE || '-');
         $tr.find('td').eq(5).text('-');
-        $tr.removeClass('sold won leading current'); // 초기화
+        $tr.removeClass('sold won leading current');
       } else {
         $tr.find('td').eq(0).text(i);
         $tr.find('td').eq(1).text('-');
@@ -538,6 +544,15 @@
         $tr.removeClass('sold won leading current');
       }
     }
+  }
+
+  // —— 유틸: 포커스 해제(다음 선수 전환 시 호출) ——
+  function clearTableFocus(){
+    try{
+      var ae = document.activeElement;
+      if (!ae) return;
+      if ($(ae).closest('#playerPanel').length) { ae.blur(); }
+    }catch(e){}
   }
 
   // 라운드 시작
@@ -568,48 +583,70 @@
     });
   }
 
+  function setCountdown(deadlineTs){
+    if (typeof deadlineTs !== 'number') return;
+    if (CNT_TIMER) { clearInterval(CNT_TIMER); CNT_TIMER=null; }
+    function tick(){
+      var leftMs = Math.max(0, deadlineTs - Date.now());
+      var left = Math.ceil(leftMs/1000);
+      $("#countdown").text(left);
+      if (left <= 0) { clearInterval(CNT_TIMER); CNT_TIMER=null; }
+    }
+    tick();
+    CNT_TIMER = setInterval(tick, 200);
+  }
+
+  function highlightCurrentByNick(nick){
+    $("#playerTable tr.current").removeClass("current");
+    if (!nick) return false;
+    var found = false;
+    $("#playerBody tr").each(function(){
+      if ($(this).find('td').eq(1).text().trim() === String(nick).trim()) {
+        $(this).addClass("current");
+        try { this.scrollIntoView({behavior:'smooth', block:'center'}); } catch(e){}
+        found = true;
+        return false;
+      }
+    });
+    return found;
+  }
+
+  function toggleControlsFromResp(r){
+    if (!r || r.success!==true) return;
+    var c = r.data || {};
+    $(".quickline:not(.minusline) .btn").addClass("is-disabled").prop("disabled", true);
+    (c.enabledIncs || []).forEach(function(x){
+      $(".quickline:not(.minusline) .btn[data-inc='"+x+"']").removeClass("is-disabled").prop("disabled", false);
+    });
+    $(".minusline .btn").removeClass("is-disabled").prop("disabled", false);
+    $("#btnAllin").prop("disabled", !c.canAllin);
+  }
+
   function updateAuctionConsole(s){
     if (!s) return;
 
-    // 대상/현재가
-    if (typeof s.targetNick === 'string') $("#currentTarget").text(s.targetNick);
-    if (typeof s.highestBid === 'number') $("#currentPrice").text(s.highestBid);
-
-    // pick 변경 시 초기화
+    // 새 pick 시작 감지 → 포커스 해제
     if (s.pickId && s.pickId !== LAST_PICK_ID) {
       LAST_PICK_ID = s.pickId;
       G.currentPickId = s.pickId;
       $("#bidAmount").val(0);
       $("#playerBody tr").removeClass("leading current");
       $("#myBudgetHold").text("");
+      clearTableFocus(); /* ★ 포커스 해제 */
     }
 
-    // 남은 시간
+    if (typeof s.targetNick === 'string') $("#currentTarget").text(s.targetNick);
+    if (typeof s.highestBid === 'number') $("#currentPrice").text(s.highestBid);
+
     if (typeof s.deadlineTs === 'number') {
-      if (CNT_TIMER) { clearInterval(CNT_TIMER); CNT_TIMER=null; }
-      function tick(){
-        var leftMs = Math.max(0, s.deadlineTs - Date.now());
-        var left = Math.ceil(leftMs/1000);
-        $("#countdown").text(left);
-        if (left <= 0) { clearInterval(CNT_TIMER); CNT_TIMER=null; }
-      }
-      tick();
-      CNT_TIMER = setInterval(tick, 200);
+      setCountdown(s.deadlineTs);
     }
 
-    // 현재 진행 선수 하이라이트
-    if (typeof s.targetNick === 'string') {
-      $("#playerTable tr.current").removeClass("current");
-      $("#playerBody tr").each(function(){
-        if ($(this).find('td').eq(1).text().trim() === s.targetNick) {
-          $(this).addClass("current");
-          return false;
-        }
-      });
+    if (typeof s.targetNick === 'string' && !s.assigned) {
+      highlightCurrentByNick(s.targetNick);
     }
 
-    // 진행 중: 우측 표에 현재가 반영(좌측은 확정 때만)
-    if (s.targetNick && typeof s.highestBid === 'number') {
+    if (s.targetNick && typeof s.highestBid === 'number' && !s.assigned) {
       $("#playerBody tr").each(function(){
         var $tr = $(this);
         var $tds = $tr.find("td");
@@ -622,7 +659,6 @@
       });
     }
 
-    // 내 잔액 프리뷰(가상)
     if (G.myTeamId && s.highestTeam && typeof s.highestBid === 'number') {
       if (String(G.myTeamId) === String(s.highestTeam)) {
         var currentLeft = parseInt($("#myBudget").text()||"0",10);
@@ -632,19 +668,16 @@
       }
     }
 
-    // ===== 낙찰/유찰 확정 처리 =====
     if (s.assigned === true || s.assigned === false || s.requeued === true) {
-      // 진행 표시 제거
       $("#playerBody tr").removeClass("leading current");
     }
 
-    // ✅ 낙찰 확정: 좌측 팀시트 반영 + 우측 ‘sold’ 표시
+    // ✅ 낙찰 확정: 좌측 팀시트 갱신(닉/가격/티어/주포지션)
     if (s.assigned === true) {
-      // teamId / targetNick 누락 시 안전하게 전면 갱신
       if (!s.teamId || !s.targetNick) {
+        PENDING_HILITE = null;
         loadStep3();
       } else {
-        // 우측 표: 낙찰가 + 시각적 ‘sold’
         $("#playerBody tr").each(function(){
           var $tds = $(this).find("td");
           if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
@@ -654,22 +687,24 @@
           }
         });
 
-        // 좌측 팀시트: 해당 팀의 빈 칸에 배치 + 가격 기입
         var rowIdx = G.teamRowById ? G.teamRowById[String(s.teamId)] : null;
         if (rowIdx != null) {
           var $rows = $('#teamSheetBody').find('tr[data-team="'+rowIdx+'"]');
           var $nickCells = $rows.eq(0).find('td.m1.nick,td.m2.nick,td.m3.nick,td.m4.nick');
           var $pointCells= $rows.eq(1).find('td.m1.point,td.m2.point,td.m3.point,td.m4.point');
+          var $tierCells = $rows.eq(2).find('td.m1.tier,td.m2.tier,td.m3.tier,td.m4.tier');       /* ★ 추가 */
+          var $posCells  = $rows.eq(3).find('td.m1.pos,td.m2.pos,td.m3.pos,td.m4.pos');           /* ★ 추가 */
           for (var i=0;i<4;i++){
             if ($nickCells.eq(i).text().trim() === "-") {
               $nickCells.eq(i).text(s.targetNick);
               $pointCells.eq(i).text(s.price != null ? s.price : "-");
+              $tierCells.eq(i).text(s.targetTier || "-");    /* ★ 티어 채우기 */
+              $posCells.eq(i).text(s.targetMrole || "-");    /* ★ 주포지션 채우기 */
               break;
             }
           }
         }
 
-        // 내 팀이면 잔액/좌상단 수치 갱신
         if (G.myTeamId && String(G.myTeamId) === String(s.teamId) && typeof s.teamBudgetLeft === 'number') {
           $("#myBudget").text(s.teamBudgetLeft);
           var rowIdx2 = G.teamRowById[String(G.myTeamId)];
@@ -686,37 +721,36 @@
       $("#myBudgetHold").text("");
     }
 
-    // 다음 타겟 안내
+    // ===== 다음 타겟(다음 픽 오픈) 처리 =====
     if (s.nextPickId) {
+      clearTableFocus(); /* ★ 다음 선수 전환 시 포커스 해제 */
+
+      G.currentPickId = s.nextPickId;
+      LAST_PICK_ID    = s.nextPickId;
+
       $("#currentPrice").text(0);
       $("#currentTarget").text(String(s.nextTarget||"-"));
-      // ★ 안전망: 다음 픽으로 넘어갈 때 전체 동기화
-      loadStep3(); /* ★ 수정 */
+
+      if (typeof s.deadlineTs === 'number') setCountdown(s.deadlineTs);
+
+      var ok = highlightCurrentByNick(s.nextTarget);
+
+      $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.nextPickId + "/controls")
+        .done(toggleControlsFromResp);
+
+      if (!ok) {
+        PENDING_HILITE = s.nextTarget || null;
+        loadStep3();
+      }
+      return;
     }
 
-    // ===== 컨트롤(+10/+20/+50) 활성화: 마이너스는 항상 활성 =====
-    if (s.pickId) {
+    if (s.pickId && !s.assigned) {
       $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.pickId + "/controls")
-        .done(function(r){
-          if (!r || r.success!==true) return;
-          var c = r.data || {};
-
-          // (+) 버튼만 서버 응답에 따라 토글
-          $(".quickline:not(.minusline) .btn").addClass("is-disabled").prop("disabled", true);
-          (c.enabledIncs || []).forEach(function(x){
-            $(".quickline:not(.minusline) .btn[data-inc='"+x+"']").removeClass("is-disabled").prop("disabled", false);
-          });
-
-          // (–) 버튼은 항상 사용 가능 (현재가 아래로 못 내려가게는 아래 onClick에서 보정)
-          $(".minusline .btn").removeClass("is-disabled").prop("disabled", false); /* ★ 수정 */
-
-          // 올인/입찰 버튼 기본 보정
-          $("#btnAllin").prop("disabled", !c.canAllin);
-        });
+        .done(toggleControlsFromResp);
     }
   }
 
-  // 퀵 증감 (최소값: 현재가)
   $(document).on("click", ".quickline .btn", function(){
     var inc = parseInt($(this).data("inc"),10);
     if (isNaN(inc)) return;
@@ -724,11 +758,10 @@
     var now  = parseInt($("#bidAmount").val()||"0",10);
     if (!now || now < base) now = base;
     var next = now + inc;
-    if (next < base) next = base; // 현재가 아래로는 못 내려감
+    if (next < base) next = base;
     $("#bidAmount").val(next);
   });
 
-  // 입찰
   $(document).on("click", "#btnBid", function(){
     if (!G.code || !G.currentPickId) { alert("진행 중인 픽이 없습니다."); return; }
     var current = parseInt($("#currentPrice").text()||"0",10);
@@ -755,7 +788,6 @@
     });
   });
 
-  // 올인
   $(document).on("click", "#btnAllin", function(){
     if (!G.code || !G.currentPickId) { alert("진행 중인 픽이 없습니다."); return; }
     $("#bidErr").hide();
