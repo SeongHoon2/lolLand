@@ -39,41 +39,23 @@ public class AuctionAutoRunner {
         this.auctionService = auctionService;
     }
 
-    /**
-     * 경매 시작: 이미 BIDDING 중인 픽이 있다고 가정(컨트롤러가 스냅을 브로드캐스트함)
-     * - 서비스에서 현재 스냅샷을 읽어 pickId/deadlineTs 확보
-     * - deadlineTs가 없다면 now+7초로 기본값
-     */
     public synchronized void start(Long aucSeq) {
         try {
             Map<String, Object> snap = auctionService.findCurrentPickSnapshot(aucSeq);
-            if (snap == null) {
-                cancel(aucSeq);
-                return;
-            }
+            if (snap == null) { cancel(aucSeq); return; }
             Long pickId = toLong(snap.get("pickId"));
-            if (pickId == null) {
-                cancel(aucSeq);
-                return;
-            }
+            if (pickId == null) { cancel(aucSeq); return; }
             currentPick.put(aucSeq, pickId);
 
             long deadlineTs = toLong(snap.get("deadlineTs")) != null
                     ? toLong(snap.get("deadlineTs"))
-                    : System.currentTimeMillis() + 7000L;
-
+                    : System.currentTimeMillis() + 10000L; // 10초
             scheduleAt(aucSeq, deadlineTs);
         } catch (Exception e) {
             cancel(aucSeq);
         }
     }
 
-    /**
-     * 입찰 시 데드라인 연장.
-     * @param aucSeq 경매 시퀀스
-     * @param pickId 반드시 Long(현재 진행 중 픽 id)
-     * @param seconds from now
-     */
     public synchronized void reset(Long aucSeq, Long pickId, int seconds) {
         try {
             cancel(aucSeq);
@@ -94,35 +76,25 @@ public class AuctionAutoRunner {
         }
     }
 
-    /** 절대시각으로 스케줄 */
     private synchronized void scheduleAt(Long aucSeq, long deadlineTs) {
         long delayMs = Math.max(0L, deadlineTs - System.currentTimeMillis());
         ScheduledFuture<?> f = exec.schedule(() -> onTimeout(aucSeq), delayMs, TimeUnit.MILLISECONDS);
         timers.put(aucSeq, f);
     }
 
-    /** 타임아웃 콜백: 현재 픽 마감 → 다음 픽 여부에 따라 재스케줄 또는 종료 */
     private void onTimeout(Long aucSeq) {
         try {
             Long pickId = currentPick.get(aucSeq);
-            if (pickId == null) {
-                cancel(aucSeq);
-                return;
-            }
+            if (pickId == null) { cancel(aucSeq); return; }
 
-            // 마감/낙찰 처리
             Map<String, Object> out = auctionService.finalizePick(aucSeq, pickId);
-            // 상태 브로드캐스트 (프론트는 assigned===true일 때만 좌측 팀시트 갱신)
             msg.convertAndSend("/topic/auc." + aucSeq + ".state", out);
 
-            // 다음 픽 열림 여부 확인
-            Long nextPickId = toLong(out.get("nextPickId"));
+            Long nextPickId = toLong(out.get("nextPickId")); // 대기중 신호만 제공
             if (nextPickId != null) {
-                currentPick.put(aucSeq, nextPickId);
-                long nextDeadline = toLong(out.get("deadlineTs")) != null
-                        ? toLong(out.get("deadlineTs"))
-                        : System.currentTimeMillis() + 7000L;
-                scheduleAt(aucSeq, nextDeadline);
+                // 자동 시작 제거: 타이머 종료 상태로 대기
+                currentPick.remove(aucSeq);
+                cancel(aucSeq);
             } else {
                 // 라운드 종료
                 currentPick.remove(aucSeq);
@@ -132,7 +104,6 @@ public class AuctionAutoRunner {
                 msg.convertAndSend("/topic/auc." + aucSeq + ".state", done);
             }
         } catch (Exception e) {
-            // 에러 시 타이머만 정리 (다음 begin으로 복구 가능)
             cancel(aucSeq);
         }
     }

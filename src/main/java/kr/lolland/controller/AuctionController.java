@@ -246,6 +246,7 @@ public class AuctionController {
         if (!"ING".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "ING 상태 아님");
         Long aucSeq = ((Number)auc.get("SEQ")).longValue();
 
+        // 이미 BIDDING 중이면 현황만 브로드캐스트
         Map<String,Object> current = auctionService.findCurrentPickSnapshot(aucSeq);
         if (current != null) {
             msg.convertAndSend("/topic/auc."+aucSeq+".state", current);
@@ -253,12 +254,12 @@ public class AuctionController {
             return resp(true, null, current);
         }
 
-        Map<String,Object> snap = auctionService.initRoundAndBeginFirstPick(aucSeq);
-        msg.convertAndSend("/topic/auc."+aucSeq+".state", snap);
-        autoRunner.start(aucSeq);
-
-        return resp(true, null, snap);
+        // 라운드/픽 생성만, 실제 시작은 관리자 개별 시작으로
+        Map<String,Object> waiting = auctionService.initRoundAndPrepareFirstPick(aucSeq);
+        msg.convertAndSend("/topic/auc."+aucSeq+".state", waiting);
+        return resp(true, null, waiting);
     }
+
 
     @GetMapping("/{code}/picks/{pickId}/controls")
     public Map<String,Object> controls(@PathVariable String code,
@@ -300,12 +301,13 @@ public class AuctionController {
         try {
             Map<String,Object> snap = auctionService.placeBid(aucSeq, pickId, teamId, nick, amount, allin);
             msg.convertAndSend("/topic/auc."+aucSeq+".state", snap);
-            autoRunner.reset(aucSeq, ((Number)snap.get("pickId")).longValue(), 7);
+            autoRunner.reset(aucSeq, ((Number)snap.get("pickId")).longValue(), 10 /* seconds */);
             return resp(true, null, snap);
         } catch (Exception ex){
             return resp(false, ex.getMessage());
         }
     }
+
 
     private Long resolveTeamId(Long aucSeq, HttpSession s, Long overrideForAdmin) {
         String role = String.valueOf(s.getAttribute("ROLE"));
@@ -318,4 +320,23 @@ public class AuctionController {
         if (teamId == null) throw new IllegalStateException("팀 정보가 없습니다. (라운드 시작 전이거나 팀 생성 전)");
         return teamId;
     }
+    
+    @PostMapping("/{code}/picks/{pickId}/begin")
+    public Map<String,Object> beginPick(@PathVariable String code,
+                                        @PathVariable Long pickId,
+                                        HttpSession s){
+        if (!"ADMIN_GHOST".equals(String.valueOf(s.getAttribute("ROLE")))) {
+            return resp(false, "권한 없음");
+        }
+        Map<String,Object> auc = auctionService.getAucByRandomCode(code);
+        if (auc == null) return resp(false, "경매 없음");
+        if (!"ING".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "ING 상태 아님");
+        Long aucSeq = ((Number)auc.get("SEQ")).longValue();
+
+        Map<String,Object> picked = auctionService.beginSpecificPick(aucSeq, pickId, 10 /* seconds */);
+        msg.convertAndSend("/topic/auc."+aucSeq+".state", picked);
+        autoRunner.reset(aucSeq, ((Number)picked.get("pickId")).longValue(), 10);
+        return resp(true, null, picked);
+    }
+
 }

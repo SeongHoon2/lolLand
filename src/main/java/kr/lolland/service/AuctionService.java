@@ -223,14 +223,10 @@ public class AuctionService {
 
         if (allin) { if (left <= current) throw new IllegalArgumentException("올인 불가"); amount = left; }
         else {
-        	int target = amount;
-        	int tmp = current;
-        	while (tmp < target) {
-        	    tmp += incFor(tmp);
-        	}
-        	if (tmp != target) {
-        	    throw new IllegalArgumentException("증분 불일치");
-        	}
+            int target = amount;
+            int tmp = current;
+            while (tmp < target) { tmp += incFor(tmp); }
+            if (tmp != target) throw new IllegalArgumentException("증분 불일치");
             if (amount > left) throw new IllegalArgumentException("잔액 부족");
         }
         if (amount <= current) throw new IllegalArgumentException("동점/낮은 금액");
@@ -244,13 +240,14 @@ public class AuctionService {
         snap.put("targetNick", pick.get("TARGET_NICK"));
         snap.put("highestBid", amount);
         snap.put("highestTeam", teamId);
-        snap.put("deadlineTs", System.currentTimeMillis()+7000);
+        snap.put("deadlineTs", System.currentTimeMillis() + 10000L); // 10초
         return snap;
     }
 
+
     @Transactional
     public Map<String,Object> finalizePick(Long aucSeq, Long pickId){
-    	Map<String,Object> pick = auctionDao.selectPickById(pickId);
+        Map<String,Object> pick = auctionDao.selectPickById(pickId);
         Long roundId = ((Number)pick.get("ROUND_ID")).longValue();
         String target = String.valueOf(pick.get("TARGET_NICK"));
         int highest = ((Number)pick.get("HIGHEST_BID")).intValue();
@@ -270,7 +267,7 @@ public class AuctionService {
                 out.put("requeued", true);
             }
         } else {
-        	Long teamId = highestTeamN.longValue();
+            Long teamId = highestTeamN.longValue();
             if (auctionDao.updateTeamBudget(teamId, highest) == 0) throw new IllegalStateException("예산 부족/경합");
 
             auctionDao.insertTeamMember(teamId, aucSeq, target, highest, pickId);
@@ -279,7 +276,6 @@ public class AuctionService {
             Map<String,Object> team = auctionDao.selectTeamById(teamId);
             int left = ((Number)team.get("BUDGET_LEFT")).intValue();
 
-            // ★ 좌측 시트에 채울 추가 정보 조회
             Map<String,Object> member = auctionDao.selectMemberByNick(aucSeq, target);
             String targetTier  = member == null ? null : String.valueOf(member.get("TIER"));
             String targetMrole = member == null ? null : String.valueOf(member.get("MROLE"));
@@ -290,24 +286,24 @@ public class AuctionService {
             out.put("targetNick", target);
             out.put("teamBudgetLeft", left);
             out.put("leaderNick", String.valueOf(team.get("LEADER_NICK")));
-            // ★ 추가 필드
             if (targetTier != null)  out.put("targetTier", targetTier);
             if (targetMrole != null) out.put("targetMrole", targetMrole);
         }
 
         Map<String,Object> next = auctionDao.selectNextReadyPick(aucSeq);
         if (next != null) {
-            auctionDao.beginPick(((Number)next.get("PICK_ID")).longValue());
-            out.put("nextPickId", next.get("PICK_ID"));
+            // 자동 시작 제거: 관리자 개별 시작 대기
+            out.put("waiting", true);
+            out.put("waitingPickId", next.get("PICK_ID"));
+            out.put("nextPickId", next.get("PICK_ID"));   // 호환
             out.put("nextTarget", next.get("TARGET_NICK"));
-            out.put("deadlineTs", System.currentTimeMillis()+7000);
         } else {
             auctionDao.updateRoundStatus(roundId, "END");
             out.put("roundEnd", true);
         }
         return out;
     }
-    
+
     public Map<String,Object> findCurrentPickSnapshot(Long aucSeq){
         Map<String,Object> pick = auctionDao.selectCurrentBiddingPick(aucSeq);
         if (pick == null) return null;
@@ -315,7 +311,7 @@ public class AuctionService {
         snap.put("pickId", pick.get("PICK_ID"));
         snap.put("targetNick", pick.get("TARGET_NICK"));
         snap.put("highestBid", ((Number)pick.get("HIGHEST_BID")).intValue());
-        snap.put("deadlineTs", System.currentTimeMillis()+7000);
+        snap.put("deadlineTs", System.currentTimeMillis()+10000L);
         return snap;
     }
 
@@ -349,4 +345,46 @@ public class AuctionService {
     public long newDeadlineTs() {
         return System.currentTimeMillis()+7000;
     }
+    
+    @Transactional
+    public Map<String,Object> initRoundAndPrepareFirstPick(Long aucSeq){
+        Map<String,Object> r1 = auctionDao.selectRoundByNo(aucSeq, 1);
+        if (r1 == null) { auctionDao.insertRound(aucSeq, 1); r1 = auctionDao.selectRoundByNo(aucSeq, 1); }
+        Long roundId = ((Number)r1.get("ROUND_ID")).longValue();
+        auctionDao.updateRoundStatus(roundId, "ING");
+
+        if (auctionDao.selectNextReadyPick(aucSeq) == null) {
+            int no = 1;
+            for (Map<String,Object> p : auctionDao.selectPlayersForPick(aucSeq)) {
+                auctionDao.insertPick(roundId, aucSeq, no++, String.valueOf(p.get("NICK")));
+            }
+        }
+        Map<String,Object> next = auctionDao.selectNextReadyPick(aucSeq);
+        if (next == null) throw new IllegalStateException("READY 픽 없음");
+
+        Map<String,Object> out = new HashMap<>();
+        out.put("waiting", true);
+        out.put("waitingPickId", next.get("PICK_ID"));
+        out.put("nextPickId", next.get("PICK_ID"));   // 기존 프론트 호환
+        out.put("nextTarget", next.get("TARGET_NICK"));
+        return out;
+    }
+
+    @Transactional
+    public Map<String,Object> beginSpecificPick(Long aucSeq, Long pickId, int seconds){
+        Map<String,Object> pick = auctionDao.selectPickById(pickId);
+        if (pick == null) throw new IllegalArgumentException("픽 없음");
+        if (!"READY".equals(String.valueOf(pick.get("STATUS"))))
+            throw new IllegalStateException("READY 상태 아님");
+
+        auctionDao.beginPick(pickId);
+
+        Map<String,Object> snap = new HashMap<>();
+        snap.put("pickId", pickId);
+        snap.put("targetNick", pick.get("TARGET_NICK"));
+        snap.put("highestBid", 0);
+        snap.put("deadlineTs", System.currentTimeMillis() + Math.max(1, seconds) * 1000L);
+        return snap;
+    }
+
 }

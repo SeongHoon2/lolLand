@@ -103,41 +103,45 @@
       <article class="panel" id="playerPanel">
         <h3>
           입찰 콘솔&nbsp;&nbsp;&nbsp;
-          <button class="btn success sm" id="btnBegin" data-admin-only="true">경매 라운드 시작</button>
+          <button class="btn success sm" id="btnBegin" data-admin-only="true" disabled>입찰 시작</button>
         </h3>
-        <div class="console">
-          <div class="kv-row">
-            <div class="kv"><span class="k">대상</span><span class="v" id="currentTarget">-</span></div>
-            <div class="kv"><span class="k">현재가</span><span class="v" id="currentPrice">0</span></div>
-            <div class="kv"><span class="k">남은시간</span><span class="v" id="countdown">--</span></div>
-            <div class="kv"><span class="k">내 잔액</span>
-              <span class="v" id="myBudget">0</span>
-              <span id="myBudgetHold" class="muted" style="margin-left:6px;"></span>
-            </div>
-          </div>
-          <div class="row top controls">
-            <div class="ig">
-              <input type="number" id="bidAmount" min="0" step="10" class="input-number"/>
-              <button class="btn primary" id="btnBid">입찰</button>
-              <button class="btn danger" id="btnAllin">올인</button>
-            </div>
-          </div>
-          <div class="row sm quickline">
-            <button class="btn sm" data-inc="10" type="button">+10</button>
-            <button class="btn sm" data-inc="20" type="button">+20</button>
-            <button class="btn sm" data-inc="50" type="button">+50</button>
-          </div>
-          <div class="row sm quickline minusline">
-            <button class="btn sm" data-inc="-10" type="button">-10</button>
-            <button class="btn sm" data-inc="-20" type="button">-20</button>
-            <button class="btn sm" data-inc="-50" type="button">-50</button>
-          </div>
-          <div class="hint">입찰 단위: 10~100 +10 / 100~400 +20 / 400이상 +50</div>
-          <div class="err" id="bidErr" hidden></div>
-        </div>
+
+		<div class="console tall-console console-xl">
+		  <!-- 1행: 대상 -->
+		  <div class="kv-row">
+		    <div class="kv"><span class="k">대상</span><span class="v" id="currentTarget">-</span></div>
+		  </div>
+		
+		  <!-- 2행: 현재가 / 입찰자 -->
+		  <div class="kv-row two">
+		    <div class="kv"><span class="k">현재가</span><span class="v" id="currentPrice">0</span></div>
+		    <div class="kv"><span class="k">입찰자</span><span class="v" id="bidStatus">-</span></div>
+		  </div>
+		
+		  <!-- 3행: 내 잔액 / 남은시간 -->
+		  <div class="kv-row two">
+		    <div class="kv"><span class="k">내 잔액</span>
+		      <span class="v" id="myBudget">0</span>
+		      <span id="myBudgetHold" class="muted" style="margin-left:6px;"></span>
+		    </div>
+		    <div class="kv"><span class="k">남은시간</span><span class="v" id="countdown">--</span></div>
+		  </div>
+		
+		  <!-- 4행: 입찰금 박스 + 버튼 -->
+		  <div class="row top controls">
+		    <div class="ig">
+		      <input type="number" id="bidAmount" min="0" step="10" class="input-number" placeholder="10 단위로 입력"/>
+		      <button class="btn primary" id="btnBid">입찰</button>
+		      <button class="btn danger" id="btnAllin">올인</button>
+		    </div>
+		  </div>
+		
+		  <div class="hint">경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50</div>
+		</div>
+
 
         <h3 style="margin-top:14px">경매 선수 리스트</h3>
-        <div class="tbl-scroll tall players">
+        <div class="tbl-scroll tall players compact-players">
           <table class="tbl sheet" id="playerTable">
             <colgroup>
               <col style="width:56px">
@@ -197,7 +201,7 @@
     auctionBase: "<c:url value='/api/auction/'/>"
   };
 
-  var G={ code:null, aucSeq:null, nick:null, role:null, currentPickId:null, teamRowById:null, myTeamId:null };
+  var G={ code:null, aucSeq:null, nick:null, role:null, currentPickId:null, teamRowById:null, myTeamId:null, leaderNickByTeamId:{} };
   var PENDING_HILITE = null;
 
   window.addEventListener("pagehide", function(){
@@ -458,7 +462,7 @@
 
   $(function(){
     tryRestore();
-    $("#bidAmount").prop("readonly", true);
+    $("#bidAmount").prop("readonly", false); // 수동 입력 허용
   });
 
   function loadStep3(){
@@ -471,8 +475,9 @@
        var me = (data.teams||[]).find(function(t){ return String(t.LEADER_NICK) === String(G.nick); });
        $("#myBudget").text(me ? (me.BUDGET_LEFT||0) : 0);
        $("#currentPrice").text(0);
-       $("#countdown").text("--");
+       $("#countdown").text("--").css({color:'', 'font-weight':''});
        $("#currentTarget").text("-");
+       $("#bidStatus").text("-");
        $("#bidAmount").val(0);
 
        if (PENDING_HILITE){
@@ -511,11 +516,14 @@
     }
 
     G.teamRowById = {};
+    G.leaderNickByTeamId = {};
     G.myTeamId = null;
     for (var i=1;i<=8;i++){
       var t = teams[i-1] || null;
       if (t && typeof t.TEAM_ID !== 'undefined') {
-        G.teamRowById[String(t.TEAM_ID)] = i;
+        var tid = String(t.TEAM_ID);
+        G.teamRowById[tid] = i;
+        G.leaderNickByTeamId[tid] = String(t.LEADER_NICK || "-");
         if (String(t.LEADER_NICK) === String(G.nick)) G.myTeamId = t.TEAM_ID;
       }
     }
@@ -545,7 +553,6 @@
     }
   }
 
-  /* ★ 포커스 전역 해제: 어떤 요소든 활성화되어 있으면 blur */
   function clearActiveFocus(){
     try{
       var ae = document.activeElement;
@@ -553,20 +560,18 @@
     }catch(e){}
   }
 
-  // 라운드 시작
+  // 관리자: 대기 중 픽 개별 시작
   $(document).on('click', '#btnBegin', function(){
     if (!G.code) { alert('세션 없음'); return; }
-    if (!confirm('경매를 시작하시겠습니까?')) return;
+    var pid = $(this).data('pickid');
+    if (!pid) { alert('시작할 대상이 없습니다.'); return; }
+    if (!confirm('해당 선수 경매를 시작하시겠습니까?')) return;
 
     $.ajax({
-      url: URLS.auctionBase + encodeURIComponent(G.code) + "/step3/begin",
+      url: URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + pid + "/begin",
       type: "POST",
       contentType: "application/json; charset=UTF-8",
       data: "{}"
-    }).done(function(res){
-      if (!(res && res.success)) {
-        alert(res && res.error ? res.error.msg : "시작 실패");
-      }
     }).fail(function(){ alert("요청 실패"); });
   });
 
@@ -587,7 +592,10 @@
     function tick(){
       var leftMs = Math.max(0, deadlineTs - Date.now());
       var left = Math.ceil(leftMs/1000);
-      $("#countdown").text(left);
+      var $cd = $("#countdown");
+      $cd.text(left);
+      if (left <= 5) { $cd.css({color:'#ff4d4d','font-weight':'800'}); }
+      else { $cd.css({color:'', 'font-weight':''}); }
       if (left <= 0) { clearInterval(CNT_TIMER); CNT_TIMER=null; }
     }
     tick();
@@ -612,35 +620,49 @@
   function toggleControlsFromResp(r){
     if (!r || r.success!==true) return;
     var c = r.data || {};
-    $(".quickline:not(.minusline) .btn").addClass("is-disabled").prop("disabled", true);
-    (c.enabledIncs || []).forEach(function(x){
-      $(".quickline:not(.minusline) .btn[data-inc='"+x+"']").removeClass("is-disabled").prop("disabled", false);
-    });
-    $(".minusline .btn").removeClass("is-disabled").prop("disabled", false);
     $("#btnAllin").prop("disabled", !c.canAllin);
   }
 
   function updateAuctionConsole(s){
     if (!s) return;
 
-    // 새 pick 시작 감지 → 포커스/금액 초기화
+    // 대기 신호(다음 대상 올려두고 시작 대기)
+    if ((s.waiting === true) || (s.waitingPickId != null) || (s.nextPickId && !s.deadlineTs && !s.pickId)) {
+      G.currentPickId = null;
+      $("#playerBody tr").removeClass("leading current");
+      $("#currentPrice").text(0);
+      $("#bidAmount").val(0);
+      $("#myBudgetHold").text("");
+      $("#countdown").text("--").css({color:'', 'font-weight':''});
+      $("#bidStatus").text("-");
+
+      var nextNick = s.nextTarget || s.targetNick || "-";
+      $("#currentTarget").text(String(nextNick||"-"));
+      highlightCurrentByNick(nextNick);
+
+      var pid = s.waitingPickId || s.nextPickId || null;
+      $("#btnBegin").data('pickid', pid).prop('disabled', !pid);
+      return;
+    }
+
+    // 새 pick 시작
     if (s.pickId && s.pickId !== LAST_PICK_ID) {
       LAST_PICK_ID = s.pickId;
       G.currentPickId = s.pickId;
 
-      clearActiveFocus();                /* ★ 포커스 해제 */
-      $("#bidAmount").val(0);            /* ★ 금액 0으로 */
-      $("#currentPrice").text(0);        /* 표시도 0으로 */
+      clearActiveFocus();
+      $("#bidAmount").val(0);
+      $("#currentPrice").text(0);
       $("#playerBody tr").removeClass("leading current");
       $("#myBudgetHold").text("");
+      $("#btnBegin").removeData('pickid').prop('disabled', true);
+      $("#bidStatus").text("-");
     }
 
     if (typeof s.targetNick === 'string') $("#currentTarget").text(s.targetNick);
     if (typeof s.highestBid === 'number') $("#currentPrice").text(s.highestBid);
 
-    if (typeof s.deadlineTs === 'number') {
-      setCountdown(s.deadlineTs);
-    }
+    if (typeof s.deadlineTs === 'number') setCountdown(s.deadlineTs);
 
     if (typeof s.targetNick === 'string' && !s.assigned) {
       highlightCurrentByNick(s.targetNick);
@@ -668,11 +690,17 @@
       }
     }
 
-    if (s.assigned === true || s.assigned === false || s.requeued === true) {
-      $("#playerBody tr").removeClass("leading current");
+    // 현재 입찰자(팀장/금액) 표기
+    if (!s.assigned && s.highestTeam && typeof s.highestBid === 'number') {
+      var leader = G.leaderNickByTeamId && G.leaderNickByTeamId[String(s.highestTeam)];
+      if (leader) $("#bidStatus").text(leader + " 팀장 " + s.highestBid + " 입찰중");
     }
 
-    // 낙찰 확정 반영(좌측 시트/우측 행)
+    if (s.assigned === true || s.assigned === false || s.requeued === true) {
+      $("#playerBody tr").removeClass("leading current");
+      $("#bidStatus").text("-");
+    }
+
     if (s.assigned === true) {
       if (!s.teamId || !s.targetNick) {
         PENDING_HILITE = null;
@@ -721,57 +749,32 @@
       $("#myBudgetHold").text("");
     }
 
-    // ★★★ 다음 픽 오픈 (nextPickId) 시에도 포커스/금액/표시 전부 초기화
-    if (s.nextPickId) {
-      G.currentPickId = s.nextPickId;
-      LAST_PICK_ID    = s.nextPickId;
-
-      clearActiveFocus();            /* 포커스 해제 */
-      $("#bidAmount").val(0);        /* 금액 0 */
-      $("#currentPrice").text(0);    /* 현재가 0 */
-      $("#myBudgetHold").text("");   /* 가상 잔액 초기화 */
-      $("#playerBody tr").removeClass("leading current");
-
-      $("#currentTarget").text(String(s.nextTarget||"-"));
-      if (typeof s.deadlineTs === 'number') setCountdown(s.deadlineTs);
-
-      var ok = highlightCurrentByNick(s.nextTarget);
-      $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.nextPickId + "/controls")
-        .done(toggleControlsFromResp);
-
-      if (!ok) {
-        PENDING_HILITE = s.nextTarget || null;
-        loadStep3();
-      }
-      return;
-    }
-
     if (s.pickId && !s.assigned) {
       $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.pickId + "/controls")
         .done(toggleControlsFromResp);
     }
   }
 
-  $(document).on("click", ".quickline .btn", function(){
-    var inc = parseInt($(this).data("inc"),10);
-    if (isNaN(inc)) return;
-    var base = parseInt($("#currentPrice").text()||"0",10);
-    var now  = parseInt($("#bidAmount").val()||"0",10);
-    if (!now || now < base) now = base;
-    var next = now + inc;
-    if (next < base) next = base;
-    $("#bidAmount").val(next);
-  });
-
+  // 입찰: 10단위 검증 + 에러 DOM 사용 안함
   $(document).on("click", "#btnBid", function(){
     if (!G.code || !G.currentPickId) { alert("진행 중인 픽이 없습니다."); return; }
+
     var current = parseInt($("#currentPrice").text()||"0",10);
     var amount  = parseInt($("#bidAmount").val()||"0",10);
-    if (isNaN(amount) || amount <= current) {
-      $("#bidErr").text("현재가보다 큰 금액을 입력하세요.").show();
+    var $input  = $("#bidAmount");
+
+    if (isNaN(amount) || amount < 10 || (amount % 10) !== 0) {
+      $input[0].setCustomValidity("입찰 금액은 10 단위여야 합니다. (1~9 불가)");
+      $input[0].reportValidity();
       return;
     }
-    $("#bidErr").hide();
+    if (amount <= current) {
+      $input[0].setCustomValidity("현재가보다 큰 금액을 입력하세요.");
+      $input[0].reportValidity();
+      return;
+    }
+    $input[0].setCustomValidity("");
+
     var $btn = $(this).prop("disabled", true);
     $.ajax({
       url: URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/bid",
@@ -780,18 +783,18 @@
       data: JSON.stringify({ amount: amount })
     }).done(function(res){
       if (!res || res.success!==true){
-        $("#bidErr").text((res && res.error && res.error.msg) ? res.error.msg : "입찰 실패").show();
+        alert((res && res.error && res.error.msg) ? res.error.msg : "입찰 실패");
       }
     }).fail(function(){
-      $("#bidErr").text("네트워크 오류로 입찰 실패").show();
+      alert("네트워크 오류로 입찰 실패");
     }).always(function(){
       $btn.prop("disabled", false);
     });
   });
 
+  // 올인: 에러 DOM 사용 안함
   $(document).on("click", "#btnAllin", function(){
     if (!G.code || !G.currentPickId) { alert("진행 중인 픽이 없습니다."); return; }
-    $("#bidErr").hide();
     var $btn = $(this).prop("disabled", true);
     $.ajax({
       url: URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/bid",
@@ -800,13 +803,23 @@
       data: JSON.stringify({ allin: "Y" })
     }).done(function(res){
       if (!res || res.success!==true){
-        $("#bidErr").text((res && res.error && res.error.msg) ? res.error.msg : "올인 실패").show();
+        alert((res && res.error && res.error.msg) ? res.error.msg : "올인 실패");
       }
     }).fail(function(){
-      $("#bidErr").text("네트워크 오류로 올인 실패").show();
+      alert("네트워크 오류로 올인 실패");
     }).always(function(){
       $btn.prop("disabled", false);
     });
+  });
+
+  // 입력값 변경 시 10단위 보조
+  $(document).on("change", "#bidAmount", function(){
+    var v = parseInt($(this).val()||"0",10);
+    if (isNaN(v) || v < 10 || (v % 10)!==0) {
+      this.setCustomValidity("입찰 금액은 10 단위여야 합니다. (1~9 불가)");
+    } else {
+      this.setCustomValidity("");
+    }
   });
 
 })(window.jQuery || window.$);
