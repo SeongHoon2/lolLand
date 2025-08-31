@@ -112,30 +112,54 @@ body[data-state="STEP3"] #auctionApp.container{
 
 /* 콘솔 확대/타이포 강화 */
 #auctionApp #step3 .console{margin-top:14px;padding:14px;border:1px dashed var(--border);border-radius:10px}
-#auctionApp #step3 .console.tall-console{min-height:520px;}
+#auctionApp #step3 .console.tall-console{min-height:390px;}
 #auctionApp #step3 .console.console-xl{padding:18px;}
 #auctionApp #step3 .kv-row{
   display:grid;
-  grid-template-columns:1fr; /* ← !important 제거 */
+  grid-template-columns:1fr;
   gap:12px;
   margin-bottom:8px;
 }
 
 #auctionApp #step3 .kv-row.two{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; /* ← 2열 강제 + overflow 안전 */
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
   gap:12px;
   margin-bottom:8px;
 }
 
 #auctionApp #step3 .console .kv{
-  display:flex !important;align-items:center;justify-content:space-between;gap:12px;
-  background:#0e1218;border:1px solid var(--border);padding:14px 16px;border-radius:14px;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  align-items:center;
+  gap:12px;
+  background:#0e1218;
+  border:1px solid var(--border);
+  padding:14px 16px;
+  border-radius:14px;
 }
-#auctionApp #step3 .console .kv .k{color:#9096a6;font-size:15px;}
-#auctionApp #step3 .console .kv .v{font-weight:800;text-align:right;font-size:24px;}
+#auctionApp #step3 .console .kv .k{
+  text-align:left;
+  justify-self:start;
+  font-size:15px;
+  color:#9096a6;
+}
+/* 값: 가운데 정렬 */
+#auctionApp #step3 .console .kv .v{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  font-weight:800;
+  font-size:24px;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 #auctionApp #step3 .console .kv .v#countdown{font-size:28px;}
-#auctionApp #step3 .console .kv .v#currentTarget { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#auctionApp #step3 .console .kv .v#currentTarget{display:flex;justify-content:center;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 /* 컨트롤: 입력/버튼 크게 */
 #auctionApp #step3 .controls{width:100%}
@@ -157,7 +181,7 @@ body[data-state="STEP3"] #auctionApp.container{
 #auctionApp #step3 .minusline{display:none !important}
 
 /* 선수 리스트 높이 축소(콘솔 공간 확보) */
-#auctionApp #step3 .tbl-scroll.tall.players.compact-players{max-height:260px;}
+#auctionApp #step3 .tbl-scroll.tall.players.compact-players{max-height:418px;}
 
 /* 기타 */
 #auctionApp #step3 .console .hint{margin-top:8px}
@@ -172,10 +196,183 @@ body[data-state="STEP3"] #auctionApp.container{
 #auctionApp #playerBody tr.sold { background: rgba(150,155,165,0.18) !important; }
 tr.leading { opacity: 0.75; }
 @media (max-width: 720px){
-  #auctionApp #step3 .kv-row.two{ grid-template-columns:1fr !important; } /* ← 두 칸만 접기 */
+  #auctionApp #step3 .kv-row.two{ grid-template-columns:1fr !important; }
 }
 
 .muted { opacity: .7; }
+
+#auctionApp #step3 input[type=number]::-webkit-inner-spin-button,
+#auctionApp #step3 input[type=number]::-webkit-outer-spin-button{
+  -webkit-appearance: none;
+  margin: 0;
+}
+#auctionApp #step3 input[type=number]{
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+
+/* ===== 입찰 콘솔 값 정중앙 오버라이드 (append at end) ===== */
+
+/* 라벨 폭을 고정해서 값 영역을 안정화 */
+#auctionApp #step3 .console .kv{
+  grid-template-columns: 120px minmax(0,1fr) !important;
+}
+
+/* 값 셀을 셀 전체로 확장(이전 justify-self:center 무력화) */
 #auctionApp #step3 .console .kv .v{
-  text-align:center;               /* ★ 라벨/값 모두 중앙 */
+  justify-self: stretch !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+/* 개별 값 강화: 현재가/남은시간 */
+#currentPrice, #countdown{
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+/* 숫자 입력창도 보강(이미 중앙이면 영향 없음) */
+#auctionApp #step3 .controls .ig input#bidAmount.input-number{
+  text-align: center !important;
+}
+
+#auctionApp #step3 .console .kv .v#bidStatus {
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* 네 박스(현재가/입찰자/내 잔액/남은시간) 동일 규격 */
+#auctionApp #step3 .console .kv-row.two .kv {
+  height: 100px; /* 현재가 박스 높이에 맞춰 동일 고정 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 라벨 공통 */
+#auctionApp #step3 .console .kv-row.two .kv .k {
+  font-size: 14px;
+  color: #9096a6;
+  text-align: center;
+  width: 100%;
+}
+
+/* 값 공통 */
+#auctionApp #step3 .console .kv-row.two .kv .v {
+  font-size: 23px;
+  font-weight: 800;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 카운트다운은 더 큼 */
+#auctionApp #step3 .console .kv-row.two .kv .v#countdown {
+  font-size: 30px;
+}
+
+/* 입찰 입력/버튼 그룹 간격 및 버튼 라운드 처리 */
+#auctionApp #step3 .controls .ig {
+  display: flex;
+  width: 100%;
+  gap: 8px; /* 입력박스와 버튼 사이 여백 */
+}
+
+#auctionApp #step3 .controls .ig input#bidAmount.input-number {
+  flex: 1 1 auto;
+  min-width: 160px;
+  text-align: center;
+  height: 56px;
+  font-size: 30px;
+  padding: 12px 14px;
+  border-radius: 10px; /* 입력창도 라운드 */
+}
+
+#auctionApp #step3 .controls .ig .btn {
+  flex: 0 0 auto;
+  height: 56px;
+  font-size: 18px;
+  padding: 0 20px;
+  border-radius: 10px; /* 버튼 둥글게 */
+}
+
+#auctionApp #step3 .controls .ig .btn + .btn {
+  margin-left: 6px; /* 버튼끼리도 살짝 띄움 */
+}
+
+#playerTable tr.current td{background:rgba(77,163,255,.12)}
+#playerTable tr.leading{opacity:.8}
+#playerTable tr.sold td{background:rgba(150,155,165,.18)}
+#playerTable tr.won td{text-decoration:overline}
+
+#auctionApp #teamSheet td.nick{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#auctionApp #teamSheet td.leader.nick{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#auctionApp #step3 .console .kv .v#bidStatus{display:block !important;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* === 우측 콘솔 라벨 고정폭 + 값 중앙정렬(정렬 불일치 해결) === */
+/* 각 박스는 가로 플렉스, 이전 고정 높이/그리드 설정 무력화 */
+#auctionApp #step3 .console .kv-row.two .kv{
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  gap:10px !important;
+  grid-template-columns:none !important; /* 과거 grid 해제 */
+  height:auto !important;                /* 100px 고정 해제 */
+  padding:12px 14px !important;
+  position: relative;                    /* 잔액 보조 텍스트 절대배치용 */
+}
+
+/* 라벨: 모든 박스 동일한 고정폭(“현재 경매가” 기준) */
+#auctionApp #step3 .console .kv-row.two .kv .k{
+  flex:0 0 120px !important;  /* 고정폭 */
+  width:120px !important;
+  text-align:left !important;
+}
+
+/* 값: 박스 우측 영역에서 항상 가운데 정렬 */
+#auctionApp #step3 .console .kv-row.two .kv .v{
+  flex:1 1 auto !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;  /* 중앙 정렬 핵심 */
+  text-align:center !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  font-size:24px !important;          /* 기본 값 크기 */
+}
+
+/* 카운트다운만 조금 더 큼 */
+#auctionApp #step3 .console .kv-row.two .kv .v#countdown{
+  font-size:28px !important;
+}
+
+/* '내 잔액' 숫자 24px 유지 */
+#auctionApp #step3 .console .kv .v#myBudget{
+  font-size:24px !important;
+}
+
+/* 잔액 보조 텍스트는 우측에 겹쳐 배치(값 중앙 정렬에 영향 없게) */
+#auctionApp #step3 #myBudgetHold{
+  position:absolute;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%);
+  margin-left:0 !important; /* 기존 margin-left 무력화 */
 }

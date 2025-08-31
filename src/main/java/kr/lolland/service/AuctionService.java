@@ -97,10 +97,11 @@ public class AuctionService {
     public Map<String,Object> getStep3Snapshot(Long aucSeq){
         auctionDao.insertMissingTeamsFromLeaders(aucSeq);
 
-        List<Map<String,Object>> teams = auctionDao.selectTeamsByAuc(aucSeq);
+        List<Map<String,Object>> teams   = auctionDao.selectTeamsByAuc(aucSeq);
         List<Map<String,Object>> players = auctionDao.selectNonLeaderPlayers(aucSeq);
-
         List<Map<String,Object>> leaderDetails = auctionDao.selectLeaderDetails(aucSeq);
+        List<Map<String,Object>> teamMembers   = auctionDao.selectTeamMembersByAuc(aucSeq); // ★ 추가
+
         Map<Long, Map<String,Object>> leaderByTeamId = new HashMap<>();
         for (Map<String,Object> m : leaderDetails){
             leaderByTeamId.put(((Number)m.get("TEAM_ID")).longValue(), m);
@@ -108,16 +109,18 @@ public class AuctionService {
 
         List<Long> order = loadOrCreateTeamOrder(aucSeq, teams);
 
+        // 팀 순서 고정 + 리더 메타
         List<Map<String,Object>> orderedTeams = new ArrayList<>();
         int ord = 1;
         for (Long id : order) {
-            Map<String,Object> base = new LinkedHashMap<>(teams.stream()
-                    .filter(t -> ((Number)t.get("TEAM_ID")).longValue()==id).findFirst().orElse(new HashMap<>()));
+            Map<String,Object> base = new LinkedHashMap<>(
+                teams.stream().filter(t -> ((Number)t.get("TEAM_ID")).longValue()==id)
+                     .findFirst().orElse(new HashMap<>()));
             if (base.isEmpty()) continue;
             base.put("ORDER_NO", ord++);
             int budget = ((Number)base.get("BUDGET")).intValue();
             int left   = ((Number)base.get("BUDGET_LEFT")).intValue();
-            base.put("USED", budget-left);
+            base.put("USED", Math.max(0, budget-left));
 
             Map<String,Object> detail = leaderByTeamId.get(id);
             if(detail!=null){
@@ -125,14 +128,21 @@ public class AuctionService {
                 base.put("LEADER_MROLE", detail.get("MROLE"));
                 base.put("LEADER_SROLE", detail.get("SROLE"));
             }
-
             orderedTeams.add(base);
+        }
+
+        // ★ 팀 멤버를 팀ID->멤버리스트로 묶어 반환
+        Map<Long, List<Map<String,Object>>> membersByTeam = new LinkedHashMap<>();
+        for (Map<String,Object> tm : teamMembers){
+            Long tid = ((Number)tm.get("TEAM_ID")).longValue();
+            membersByTeam.computeIfAbsent(tid, k -> new ArrayList<>()).add(tm);
         }
 
         Map<String,Object> r = new LinkedHashMap<>();
         r.put("aucSeq", aucSeq);
         r.put("teams", orderedTeams);
         r.put("players", players);
+        r.put("teamMembers", membersByTeam); // ★ 추가
         return r;
     }
 

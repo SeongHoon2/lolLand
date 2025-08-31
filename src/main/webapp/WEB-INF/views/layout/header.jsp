@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>.</title>
+  <title>lolLand</title>
   <link rel="stylesheet" href="<c:url value='/resources/css/common.css'/>">
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <link rel="shortcut icon" href="/resources/img/logo.png" type="image/x-icon">
@@ -14,7 +14,7 @@
 <body>
 <header class="header">
   <div class="container">
-    <h1 class="brand">.</h1>
+    <h1 class="brand">lolLand</h1>
 	<nav class="nav">
 	  <a href="<c:url value='/auction'/>">경매</a>
 	  <div class="menu">

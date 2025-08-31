@@ -4,6 +4,7 @@
 <jsp:include page="/WEB-INF/views/layout/header.jsp"/>
 
 <div class="container" id="auctionApp" data-state="STEP1">
+  <!-- STEP1 -->
   <section class="card step step1" id="step1">
     <h2 class="card-title">경매 대기실 입장</h2>
     <form id="joinForm" class="form-grid" onsubmit="return false;" autocomplete="off">
@@ -15,6 +16,7 @@
     </form>
   </section>
 
+  <!-- STEP2 -->
   <section class="card step step2" id="step2" style="display:none;">
     <div class="row between" style="margin-bottom:12px;">
       <h2 class="card-title">경매 대기실</h2>
@@ -30,8 +32,10 @@
     </div>
   </section>
 
+  <!-- STEP3 -->
   <section class="card step step3" id="step3" style="display:none;">
     <div class="au-grid-2 tight">
+      <!-- 좌측 팀리스트 -->
       <article class="panel" id="teamSpreadsheet">
         <h3>팀 리스트</h3>
         <div class="tbl-scroll tall">
@@ -100,45 +104,45 @@
         </div>
       </article>
 
+      <!-- 우측 입찰 콘솔 -->
       <article class="panel" id="playerPanel">
         <h3>
           입찰 콘솔&nbsp;&nbsp;&nbsp;
           <button class="btn success sm" id="btnBegin" data-admin-only="true" disabled>입찰 시작</button>
         </h3>
 
-		<div class="console tall-console console-xl">
-		  <!-- 1행: 대상 -->
-		  <div class="kv-row">
-		    <div class="kv"><span class="k">대상</span><span class="v" id="currentTarget">-</span></div>
-		  </div>
-		
-		  <!-- 2행: 현재가 / 입찰자 -->
-		  <div class="kv-row two">
-		    <div class="kv"><span class="k">현재가</span><span class="v" id="currentPrice">0</span></div>
-		    <div class="kv"><span class="k">입찰자</span><span class="v" id="bidStatus">-</span></div>
-		  </div>
-		
-		  <!-- 3행: 내 잔액 / 남은시간 -->
-		  <div class="kv-row two">
-		    <div class="kv"><span class="k">내 잔액</span>
-		      <span class="v" id="myBudget">0</span>
-		      <span id="myBudgetHold" class="muted" style="margin-left:6px;"></span>
-		    </div>
-		    <div class="kv"><span class="k">남은시간</span><span class="v" id="countdown">--</span></div>
-		  </div>
-		
-		  <!-- 4행: 입찰금 박스 + 버튼 -->
-		  <div class="row top controls">
-		    <div class="ig">
-		      <input type="number" id="bidAmount" min="0" step="10" class="input-number" placeholder="10 단위로 입력"/>
-		      <button class="btn primary" id="btnBid">입찰</button>
-		      <button class="btn danger" id="btnAllin">올인</button>
-		    </div>
-		  </div>
-		
-		  <div class="hint">경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50</div>
-		</div>
+        <div class="console tall-console console-xl">
+          <!-- 1행: 대상 -->
+          <div class="kv-row">
+            <div class="kv"><span class="k">입찰 대상</span><span class="v" id="currentTarget">-</span></div>
+          </div>
 
+          <!-- 2행: 현재가 / 입찰자 -->
+          <div class="kv-row two">
+            <div class="kv"><span class="k">현재 경매가</span><span class="v" id="currentPrice">0</span></div>
+            <div class="kv"><span class="k">현재 입찰자</span><span class="v" id="bidStatus">-</span></div>
+          </div>
+
+          <!-- 3행: 내 잔액 / 남은시간 -->
+          <div class="kv-row two">
+            <div class="kv"><span class="k">내 잔액</span>
+              <span class="v" id="myBudget">0</span>
+              <span id="myBudgetHold" class="muted" style="margin-left:6px;"></span>
+            </div>
+            <div class="kv"><span class="k">남은시간</span><span class="v" id="countdown">--</span></div>
+          </div>
+
+          <!-- 4행: 입찰금 박스 + 버튼 -->
+          <div class="row top controls">
+            <div class="ig">
+              <input type="number" id="bidAmount" min="0" step="10" class="input-number" placeholder="10 단위로 입력"/>
+              <button class="btn primary" id="btnBid">입찰</button>
+              <button class="btn danger" id="btnAllin">올인</button>
+            </div>
+          </div>
+
+          <div class="hint" aria-live="polite">경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50</div>
+        </div>
 
         <h3 style="margin-top:14px">경매 선수 리스트</h3>
         <div class="tbl-scroll tall players compact-players">
@@ -171,21 +175,11 @@
 </div>
 
 <jsp:include page="/WEB-INF/views/layout/footer.jsp"/>
-
 <link rel="stylesheet" href="<c:url value='/resources/css/auction.css'/>">
-
-<!-- 낙찰 색상(회색계열) -->
-<style>
-  #playerTable tr.current td{background:rgba(77,163,255,.12)}
-  #playerTable tr.leading{opacity:.8}
-  #playerTable tr.sold td{background:rgba(150,155,165,.18)}
-  #playerTable tr.won td{text-decoration:overline}
-</style>
-
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-
 <script>var CTX = "<c:url value='/'/>";</script>
+
 
 <script>
 (function($){
@@ -218,6 +212,7 @@
       $("#step3").show();
       if (G.code) loadStep3(); else setTimeout(function(){ if(G.code) loadStep3(); }, 120);
       if (STOMP && STOMP.connected) subscribeAuction();
+      if (G.role === 'ADMIN_GHOST') prepareRound(); // 관리자: 다음 대상 미리 노출
     }
   }
 
@@ -236,13 +231,12 @@
     var isReady  = !!(me && me.READY_YN==="Y" && isOnline);
 
     var $btn = $("#btnReady");
-    $btn
-      .text(isReady ? "준비 해제" : "준비 완료")
-      .data("ready", isReady)
-      .attr("aria-pressed", isReady ? "true" : "false")
-      .toggleClass("outline", isReady)
-      .prop("disabled", !isOnline)
-      .attr("title", isOnline ? "" : "오프라인 상태에서는 변경할 수 없습니다.");
+    $btn.text(isReady ? "준비 해제" : "준비 완료")
+        .data("ready", isReady)
+        .attr("aria-pressed", isReady ? "true" : "false")
+        .toggleClass("outline", isReady)
+        .prop("disabled", !isOnline)
+        .attr("title", isOnline ? "" : "오프라인 상태에서는 변경할 수 없습니다.");
   }
 
   function subscribeLobby(){
@@ -354,9 +348,7 @@
   $("#btnReady").on("click", function(){
     if(!G.aucSeq){ alert("세션 없음"); return; }
     var isReady = $("#btnReady").data("ready") === true;
-    var dest = isReady
-      ? ("/app/lobby."+G.aucSeq+".unready")
-      : ("/app/lobby."+G.aucSeq+".ready");
+    var dest = isReady ? ("/app/lobby."+G.aucSeq+".unready") : ("/app/lobby."+G.aucSeq+".ready");
     ensureConnectedThen(function(){
       try { STOMP.send(dest, {}, ""); }
       catch(e){ alert("전송 실패"); }
@@ -394,6 +386,26 @@
     }).fail(function(){
       alert('시작 요청 오류');
     });
+  });
+
+  // 라운드/첫 픽 준비 (관리자 전용) - 응답 즉시 반영하여 '다음 대상' 먼저 노출
+  function prepareRound(){
+    if(!G.code){ return; }
+    $.ajax({
+      url: URLS.auctionBase + encodeURIComponent(G.code) + "/step3/begin",
+      type: "POST",
+      contentType: "application/json; charset=UTF-8",
+      data: "{}"
+    }).done(function(res){
+      if (res && res.success===true && res.data){
+        updateAuctionConsole(res.data);
+      }
+    });
+  }
+
+  $(function(){
+    tryRestore();
+    $("#bidAmount").prop("readonly", false);
   });
 
   function tryRestore(){
@@ -459,11 +471,6 @@
       }
     });
   }
-
-  $(function(){
-    tryRestore();
-    $("#bidAmount").prop("readonly", false); // 수동 입력 허용
-  });
 
   function loadStep3(){
     $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/step3/snapshot")
@@ -564,7 +571,7 @@
   $(document).on('click', '#btnBegin', function(){
     if (!G.code) { alert('세션 없음'); return; }
     var pid = $(this).data('pickid');
-    if (!pid) { alert('시작할 대상이 없습니다.'); return; }
+    if (!pid) { prepareRound(); return; }
     if (!confirm('해당 선수 경매를 시작하시겠습니까?')) return;
 
     $.ajax({
@@ -572,6 +579,12 @@
       type: "POST",
       contentType: "application/json; charset=UTF-8",
       data: "{}"
+    }).done(function(res){
+      if (res && res.success===true && res.data){
+        updateAuctionConsole(res.data); // 브로드캐스트 미수신 대비
+      } else {
+        alert((res && res.error && res.error.msg) ? res.error.msg : "시작 실패");
+      }
     }).fail(function(){ alert("요청 실패"); });
   });
 
@@ -684,13 +697,13 @@
     if (G.myTeamId && s.highestTeam && typeof s.highestBid === 'number') {
       if (String(G.myTeamId) === String(s.highestTeam)) {
         var currentLeft = parseInt($("#myBudget").text()||"0",10);
-        $("#myBudgetHold").text("(가상: " + Math.max(0, currentLeft - s.highestBid) + ")");
+        $("#myBudgetHold").text("(입찰성공시 잔액: " + Math.max(0, currentLeft - s.highestBid) + ")");
       } else {
         $("#myBudgetHold").text("");
       }
     }
 
-    // 현재 입찰자(팀장/금액) 표기
+    // 현재 입찰자(팀장/금액)
     if (!s.assigned && s.highestTeam && typeof s.highestBid === 'number') {
       var leader = G.leaderNickByTeamId && G.leaderNickByTeamId[String(s.highestTeam)];
       if (leader) $("#bidStatus").text(leader + " 팀장 " + s.highestBid + " 입찰중");
@@ -701,11 +714,11 @@
       $("#bidStatus").text("-");
     }
 
+    // 낙찰 처리
     if (s.assigned === true) {
-      if (!s.teamId || !s.targetNick) {
-        PENDING_HILITE = null;
-        loadStep3();
-      } else {
+      $("#myBudgetHold").text("");
+
+      if (s.targetNick) {
         $("#playerBody tr").each(function(){
           var $tds = $(this).find("td");
           if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
@@ -714,39 +727,10 @@
             return false;
           }
         });
-
-        var rowIdx = G.teamRowById ? G.teamRowById[String(s.teamId)] : null;
-        if (rowIdx != null) {
-          var $rows = $('#teamSheetBody').find('tr[data-team="'+rowIdx+'"]');
-          var $nickCells = $rows.eq(0).find('td.m1.nick,td.m2.nick,td.m3.nick,td.m4.nick');
-          var $pointCells= $rows.eq(1).find('td.m1.point,td.m2.point,td.m3.point,td.m4.point');
-          var $tierCells = $rows.eq(2).find('td.m1.tier,td.m2.tier,td.m3.tier,td.m4.tier');
-          var $posCells  = $rows.eq(3).find('td.m1.pos,td.m2.pos,td.m3.pos,td.m4.pos');
-          for (var i=0;i<4;i++){
-            if ($nickCells.eq(i).text().trim() === "-") {
-              $nickCells.eq(i).text(s.targetNick);
-              $pointCells.eq(i).text(s.price != null ? s.price : "-");
-              $tierCells.eq(i).text(s.targetTier || "-");
-              $posCells.eq(i).text(s.targetMrole || "-");
-              break;
-            }
-          }
-        }
-
-        if (G.myTeamId && String(G.myTeamId) === String(s.teamId) && typeof s.teamBudgetLeft === 'number') {
-          $("#myBudget").text(s.teamBudgetLeft);
-          var rowIdx2 = G.teamRowById[String(G.myTeamId)];
-          if (rowIdx2 != null) {
-            var $rows2 = $('#teamSheetBody').find('tr[data-team="'+rowIdx2+'"]');
-            var init = parseInt($rows2.eq(0).find('td.init').text()||"0",10);
-            var left = s.teamBudgetLeft;
-            var used = Math.max(0, init - left);
-            $rows2.eq(0).find('td.left').text(left);
-            $rows2.eq(0).find('td.used').text(used);
-          }
-        }
       }
-      $("#myBudgetHold").text("");
+
+      // 안전하게 팀시트를 항상 최신화 (왼쪽 그리드 미반영 이슈 해결)
+      loadStep3();
     }
 
     if (s.pickId && !s.assigned) {
@@ -755,27 +739,25 @@
     }
   }
 
-  // 입찰: 10단위 검증 + 에러 DOM 사용 안함
+  // 입찰
   $(document).on("click", "#btnBid", function(){
-    if (!G.code || !G.currentPickId) { alert("진행 중인 픽이 없습니다."); return; }
+    if (!G.code) { alert("세션 없음"); return; }
+    if (!G.currentPickId) { alert("입찰 진행중인 건이 없습니다."); return; }
 
     var current = parseInt($("#currentPrice").text()||"0",10);
     var amount  = parseInt($("#bidAmount").val()||"0",10);
-    var $input  = $("#bidAmount");
-
     if (isNaN(amount) || amount < 10 || (amount % 10) !== 0) {
-      $input[0].setCustomValidity("입찰 금액은 10 단위여야 합니다. (1~9 불가)");
-      $input[0].reportValidity();
+      alert("입찰 금액은 10 단위여야 합니다. (예: 10, 20, 30 …)");
+      $("#bidAmount").focus();
       return;
     }
     if (amount <= current) {
-      $input[0].setCustomValidity("현재가보다 큰 금액을 입력하세요.");
-      $input[0].reportValidity();
+      alert("현재 경매가보다 큰 금액을 입력하세요.");
+      $("#bidAmount").focus();
       return;
     }
-    $input[0].setCustomValidity("");
 
-    var $btn = $(this).prop("disabled", true);
+    var $btn = $(this).prop("disabled", true).text("전송중…");
     $.ajax({
       url: URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/bid",
       type: "POST",
@@ -783,18 +765,21 @@
       data: JSON.stringify({ amount: amount })
     }).done(function(res){
       if (!res || res.success!==true){
-        alert((res && res.error && res.error.msg) ? res.error.msg : "입찰 실패");
+        var msg = (res && res.error && res.error.msg) ? res.error.msg : "입찰 실패";
+        alert(msg);
+      } else {
+        $(".hint").text("입찰 요청 완료! 서버 반영 중…");
       }
-    }).fail(function(){
-      alert("네트워크 오류로 입찰 실패");
+    }).fail(function(xhr){
+      alert("네트워크 오류로 입찰 실패" + (xhr && xhr.status ? " ("+xhr.status+")" : ""));
     }).always(function(){
-      $btn.prop("disabled", false);
+      $btn.prop("disabled", false).text("입찰");
     });
   });
 
-  // 올인: 에러 DOM 사용 안함
+  // 올인
   $(document).on("click", "#btnAllin", function(){
-    if (!G.code || !G.currentPickId) { alert("진행 중인 픽이 없습니다."); return; }
+    if (!G.code || !G.currentPickId) { alert("입찰 진행중인 건이 없습니다."); return; }
     var $btn = $(this).prop("disabled", true);
     $.ajax({
       url: URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/bid",

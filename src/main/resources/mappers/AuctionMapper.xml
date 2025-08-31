@@ -258,4 +258,15 @@
     LIMIT 1
   </select>
 
+<select id="selectTeamMembersByAuc" resultType="map">
+  SELECT tm.TEAM_ID, tm.NICK, tm.PRICE,
+         m.TIER, m.MROLE, m.SROLE
+  FROM lolland.AUC_TEAM_MEMBER tm
+  JOIN lolland.AUC_MEMBER m
+    ON m.AUC_SEQ = tm.AUC_CD AND m.NICK = tm.NICK COLLATE utf8mb4_bin
+  WHERE tm.AUC_CD = #{aucSeq}
+  ORDER BY tm.TEAM_ID, tm.PICK_ID
+</select>
+
+
 </mapper>
