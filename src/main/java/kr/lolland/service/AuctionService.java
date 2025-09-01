@@ -209,6 +209,19 @@ public class AuctionService {
         int left    = ((Number)team.get("BUDGET_LEFT")).intValue();
         int memberCnt = auctionDao.countTeamMembersByTeam(teamId);
         boolean canBid = memberCnt < 4;
+
+        int skipCnt = ((Number)pick.get("SKIP_COUNT")).intValue();
+        boolean zeroOnly = skipCnt >= 2;
+        if (zeroOnly) {
+	        Map<String,Object> r = new HashMap<>();
+	        r.put("current", 0);
+	        r.put("enabledIncs", java.util.Collections.emptyList());
+	        r.put("canAllin", false);
+	        r.put("canBid", canBid);
+	        r.put("zeroOnly", true);
+	        r.put("forcePrice", 0);
+	        return r;
+        }
         
         List<Integer> incs = new ArrayList<>();
         int minInc = incFor(current);
@@ -235,15 +248,26 @@ public class AuctionService {
         int memberCnt = auctionDao.countTeamMembersByTeam(teamId);
         if (memberCnt >= 4) throw new IllegalStateException("팀 정원이 가득 차 입찰할 수 없습니다.");
         
-        if (allin) { if (left <= current) throw new IllegalArgumentException("올인 불가"); amount = left; }
-        else {
-            int target = amount;
-            int tmp = current;
-            while (tmp < target) { tmp += incFor(tmp); }
-            if (tmp != target) throw new IllegalArgumentException("증분 불일치");
-            if (amount > left) throw new IllegalArgumentException("잔액 부족");
-        }
-        if (amount <= current) throw new IllegalArgumentException("동점/낮은 금액");
+        int skipCnt = ((Number)pick.get("SKIP_COUNT")).intValue();
+        boolean zeroOnly = skipCnt >= 2;
+        if (!zeroOnly) {
+	        	if (allin) {
+	        	if (left <= current) throw new IllegalArgumentException("올인 불가");
+	        	amount = left;
+        	} else {
+	        	int target = amount;
+	        	int tmp = current;
+	        	while (tmp < target) { tmp += incFor(tmp); }
+	        	if (tmp != target) throw new IllegalArgumentException("증분 불일치");
+	        	if (amount > left) throw new IllegalArgumentException("잔액 부족");
+        	}
+        		if (amount <= current) throw new IllegalArgumentException("동점/낮은 금액");
+        	} else {
+	        	if (allin) throw new IllegalArgumentException("0원 전용에서는 올인 불가");
+	        	if (amount != 0) throw new IllegalArgumentException("2회 유찰된 선수는 0원만 가능합니다.");
+	        	if (current != 0) throw new IllegalStateException("내부 상태 불일치(현재가)");
+        	}
+
 
         auctionDao.insertBid(aucSeq, pickId, teamId, nick, amount, allin?"Y":"N");
         if (auctionDao.updatePickHighest(pickId, amount, teamId, version) == 0)
@@ -325,9 +349,11 @@ public class AuctionService {
         snap.put("pickId", pick.get("PICK_ID"));
         snap.put("targetNick", pick.get("TARGET_NICK"));
         snap.put("highestBid", ((Number)pick.get("HIGHEST_BID")).intValue());
+        snap.put("highestTeam", pick.get("HIGHEST_TEAM")); // ★ 추가
         snap.put("deadlineTs", System.currentTimeMillis()+10000L);
         return snap;
     }
+
 
     public void logEvent(Long aucSeq, String type, Object payload){
         try{
@@ -363,24 +389,33 @@ public class AuctionService {
     @Transactional
     public Map<String,Object> initRoundAndPrepareFirstPick(Long aucSeq){
         Map<String,Object> r1 = auctionDao.selectRoundByNo(aucSeq, 1);
-        if (r1 == null) { auctionDao.insertRound(aucSeq, 1); r1 = auctionDao.selectRoundByNo(aucSeq, 1); }
-        Long roundId = ((Number)r1.get("ROUND_ID")).longValue();
-        auctionDao.updateRoundStatus(roundId, "ING");
 
-        if (auctionDao.selectNextReadyPick(aucSeq) == null) {
-            int no = 1;
-            for (Map<String,Object> p : auctionDao.selectPlayersForPick(aucSeq)) {
-                auctionDao.insertPick(roundId, aucSeq, no++, String.valueOf(p.get("NICK")));
+        if (r1 == null) {
+            auctionDao.insertRound(aucSeq, 1);
+            r1 = auctionDao.selectRoundByNo(aucSeq, 1);
+            auctionDao.updateRoundStatus(((Number)r1.get("ROUND_ID")).longValue(), "ING");
+        } else {
+            String st = String.valueOf(r1.get("STATUS"));
+            if ("END".equals(st)) {
+                Map<String,Object> out = new HashMap<>();
+                out.put("roundEnd", true);
+                return out;                 // ← 끝났으면 절대 재생성 금지
+            }
+            if (!"ING".equals(st)) {
+                auctionDao.updateRoundStatus(((Number)r1.get("ROUND_ID")).longValue(), "ING");
             }
         }
         Map<String,Object> next = auctionDao.selectNextReadyPick(aucSeq);
-        if (next == null) throw new IllegalStateException("READY 픽 없음");
-
+        if (next == null) {
+            Map<String,Object> out = new HashMap<>();
+            out.put("roundEnd", true);
+            return out;
+        }
         Map<String,Object> out = new HashMap<>();
         out.put("waiting", true);
         out.put("waitingPickId", next.get("PICK_ID"));
-        out.put("nextPickId", next.get("PICK_ID"));   // 기존 프론트 호환
-        out.put("nextTarget", next.get("TARGET_NICK"));
+        out.put("nextPickId",    next.get("PICK_ID"));
+        out.put("nextTarget",    next.get("TARGET_NICK"));
         return out;
     }
 
