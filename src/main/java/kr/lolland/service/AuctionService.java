@@ -207,7 +207,9 @@ public class AuctionService {
         Map<String,Object> team = auctionDao.selectTeamById(teamId);
         int current = ((Number)pick.get("HIGHEST_BID")).intValue();
         int left    = ((Number)team.get("BUDGET_LEFT")).intValue();
-
+        int memberCnt = auctionDao.countTeamMembersByTeam(teamId);
+        boolean canBid = memberCnt < 4;
+        
         List<Integer> incs = new ArrayList<>();
         int minInc = incFor(current);
         for (int c : new int[]{10,20,50}) {
@@ -216,13 +218,13 @@ public class AuctionService {
         Map<String,Object> r = new HashMap<>();
         r.put("current", current);
         r.put("enabledIncs", incs);
-        r.put("canAllin", left > current);
+        r.put("canAllin", canBid && left > current);
+        r.put("canBid", canBid);
         return r;
     }
 
     @Transactional
-    public Map<String,Object> placeBid(Long aucSeq, Long pickId, Long teamId, String nick,
-                                       int amount, boolean allin){
+    public Map<String,Object> placeBid(Long aucSeq, Long pickId, Long teamId, String nick, int amount, boolean allin){
         Map<String,Object> pick = auctionDao.selectPickById(pickId);
         if (!"BIDDING".equals(String.valueOf(pick.get("STATUS")))) throw new IllegalStateException("입찰 불가");
         int current = ((Number)pick.get("HIGHEST_BID")).intValue();
@@ -230,7 +232,9 @@ public class AuctionService {
 
         Map<String,Object> team = auctionDao.selectTeamById(teamId);
         int left = ((Number)team.get("BUDGET_LEFT")).intValue();
-
+        int memberCnt = auctionDao.countTeamMembersByTeam(teamId);
+        if (memberCnt >= 4) throw new IllegalStateException("팀 정원이 가득 차 입찰할 수 없습니다.");
+        
         if (allin) { if (left <= current) throw new IllegalArgumentException("올인 불가"); amount = left; }
         else {
             int target = amount;
@@ -397,4 +401,27 @@ public class AuctionService {
         return snap;
     }
 
+ // 추가
+    public Map<String,Object> peekState(Long aucSeq){
+        // 1) 현재 BIDDING 중인 픽이 있으면 그대로 반환
+        Map<String,Object> cur = findCurrentPickSnapshot(aucSeq);
+        if (cur != null) return cur;
+
+        // 2) 없으면 다음 READY 픽을 'waiting' 형태로 반환 (변경 없음: 읽기 전용)
+        Map<String,Object> next = auctionDao.selectNextReadyPick(aucSeq);
+        if (next != null) {
+            Map<String,Object> r = new HashMap<>();
+            r.put("waiting", true);
+            r.put("waitingPickId", next.get("PICK_ID"));
+            r.put("nextPickId",    next.get("PICK_ID"));
+            r.put("nextTarget",    next.get("TARGET_NICK"));
+            return r;
+        }
+
+        // 3) 둘 다 없으면 라운드 종료 상태 (선택적으로 표시용 플래그)
+        Map<String,Object> idle = new HashMap<>();
+        idle.put("idle", true);
+        return idle;
+    }
+    
 }

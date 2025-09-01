@@ -339,4 +339,15 @@ public class AuctionController {
         return resp(true, null, picked);
     }
 
+    @GetMapping("/{code}/state")
+    public Map<String,Object> state(@PathVariable String code){
+        Map<String,Object> auc = auctionService.getAucByRandomCode(code);
+        if (auc == null) return resp(false, "경매 없음");
+        if (!"ING".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "ING 상태 아님");
+
+        Long aucSeq = ((Number)auc.get("SEQ")).longValue();
+        Map<String,Object> s = auctionService.peekState(aucSeq);
+        return resp(true, null, s);
+    }
+
 }

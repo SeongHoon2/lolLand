@@ -1,28 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
+
 #auctionApp{
-  --surface:#171a22;--card:#1d212b;--muted:#9096a6;--text:#eef1f7;--accent:#ffd54d;--accent-2:#4da3ff;
-  --danger:#ff6b6b;--success:#58d68d;--warn:#ffb84d;--border:#2a2f3a;--gap:12px;--radius:14px;
-  --shadow:0 8px 24px rgba(0,0,0,.25);
+  --surface:#171a22;--card:#1d212b;--muted:#9096a6;--text:#eef1f7;
+  --accent:#ffd54d;--accent-2:#4da3ff;
+  --danger:#ff6b6b;--success:#58d68d;--warn:#ffb84d;--border:#2a2f3a;
+  --gap:12px;--radius:14px;--shadow:0 8px 24px rgba(0,0,0,.25);
+  --kv-label-w: 92px;
   color:var(--text); font:12px/1.5 'Noto Sans KR',sans-serif;
 }
 #auctionApp,#auctionApp *{box-sizing:border-box}
-#auctionApp{background:var(--bg)}
 #auctionApp .au-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:linear-gradient(180deg,#151923,#11141b);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
 #auctionApp .au-title{margin:0;font-size:18px;letter-spacing:.3px}
 #auctionApp .au-status-badge{padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:600}
-#auctionApp.container,#auctionApp .au-container{max-width:1200px;margin:24px auto;padding:0 16px;display:grid;gap:var(--gap)}
+#auctionApp.container{max-width:1200px;margin:24px auto;padding:0 16px;display:grid;gap:var(--gap)}
 #auctionApp .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 16px 20px;box-shadow:var(--shadow)}
 #auctionApp .card-title{margin:0 0 20px;font-size:18px}
 #auctionApp .pill{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:999px}
-#auctionApp .pill.warn{color:#222;background:var(--accent);border-color:#eab308}
 #auctionApp .row{display:flex;align-items:center}
 #auctionApp .row.between{justify-content:space-between}
 #auctionApp .row.end{justify-content:flex-end}
 #auctionApp .row.gap{gap:var(--gap)}
-#auctionApp .grid-3{display:grid;grid-template-columns:1.1fr 1fr 1.3fr;gap:var(--gap);margin-top:10px}
 #auctionApp .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
 #auctionApp .form-grid{display:grid;grid-template-columns:60px 1fr;gap:10px 12px;max-width:520px}
-#auctionApp .form-grid input,#auctionApp .form-grid select,#auctionApp .input-number{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#0e1218;color:#eef1f7;outline:none}
+#auctionApp .form-grid input,#auctionApp .input-number{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#0e1218;color:#eef1f7;outline:none}
 #auctionApp .form-grid input:focus,#auctionApp .input-number:focus{border-color:#2b7cff}
 #auctionApp .form-grid label{display:flex;align-items:center}
 #auctionApp .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0e1218;color:#fff;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
@@ -32,20 +32,8 @@
 #auctionApp .btn.success{background:#2ea66f;border-color:#25975f;font-weight:700;color:#fff}
 #auctionApp .btn.success:hover{background:#249a5a;border-color:#1f834d}
 #auctionApp .btn.danger{background:#d15252;border-color:#c14444;font-weight:700;color:#fff}
-#auctionApp .list{list-style:none;margin:8px 0 0;padding:0;max-height:none;overflow:visible}
+#auctionApp .list{list-style:none;margin:8px 0 0;padding:0}
 #auctionApp .list li{padding:8px 10px;border-bottom:1px dashed var(--border);display:flex;justify-content:space-between;gap:8px;color:#c9ceda}
-#auctionApp .player{display:grid;gap:8px}
-#auctionApp .player-name{font-weight:700}
-#auctionApp .player-meta{color:var(--muted)}
-#auctionApp .price{display:flex;align-items:baseline;gap:8px}
-#auctionApp .price strong{font-size:20px}
-#auctionApp .timer{margin-top:6px;font-weight:800;font-size:18px;color:#111;background:var(--accent);padding:6px 10px;border-radius:8px;width:max-content}
-#auctionApp .budget{color:#9096a6;margin-bottom:8px}
-#auctionApp .tbl{width:100%;border-collapse:collapse;font-size:12px}
-#auctionApp .tbl th,#auctionApp .tbl td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:center;vertical-align:middle}
-#auctionApp .tbl thead th{color:#aab0bf}
-#auctionApp .feed{list-style:none;margin:8px 0 0;padding:0;max-height:240px;overflow:auto}
-#auctionApp .feed li{padding:8px 0;border-bottom:1px dashed var(--border);color:#cfd5e3}
 #auctionApp[data-state="STEP1"]{display:grid;place-items:center;padding:24px 16px}
 #auctionApp[data-state="STEP1"] .step1{width:100%;max-width:340px;padding-bottom:24px}
 #auctionApp #step1 #btnJoin{grid-column:1/-1;justify-self:center;min-width:80px;margin-top:10px}
@@ -62,8 +50,6 @@
 #auctionApp #btnReady:active{transform:translateY(1px)}
 #auctionApp #btnStart{background:#2ea66f;border-color:#25975f;color:#fff;font-weight:700}
 #auctionApp #btnStart:hover{background:#249a5a;border-color:#1f834d}
-#auctionApp #leaderList{padding-bottom:10px}
-#auctionApp #leaderListTitle{margin:0 0 6px}
 #auctionApp #leaderList li .online{color:#2b7cff;font-weight:600}
 #auctionApp #leaderList li .offline{color:#9096a6}
 #auctionApp[data-state="STEP2"] .row.end{padding-top:10px}
@@ -72,28 +58,17 @@
 body.admin #auctionApp [data-admin-only="true"]{display:inline-flex !important}
 body.admin #auctionApp #btnReady{display:none !important}
 #auctionApp .is-disabled{opacity:.6;cursor:not-allowed}
-#auctionApp #btnStart {background:#2ea66f;color:#fff;font-weight:700}
-#auctionApp #btnStart:hover {background:#249a5a;border-color:#1f834d}
-
-/* STEP3 레이아웃: 우측 패널 넓게 */
 body[data-state="STEP3"] #auctionApp.container{
-  width:1500px;max-width:calc(100vw - 32px);margin-left:auto;margin-right:auto;align-self:center;justify-self:center;
+  width:1500px;max-width:calc(100vw - 32px);margin-left:auto;margin-right:auto;
 }
 #auctionApp #step3 .au-grid-2.tight{
   display:grid;grid-template-columns:900px 600px;gap:var(--gap);margin-top:12px;
 }
-
-/* 스크롤 박스 */
 #auctionApp #step3 .tbl-scroll{overflow:visible;border:1px solid var(--border);border-radius:10px;background:#0e1218}
 #auctionApp #step3 .tbl-scroll.tall.players{max-height:566px;overflow:auto}
-
-/* 표 공통 */
 #auctionApp #step3 table.sheet{width:100%;border-collapse:collapse}
 #auctionApp #step3 table.sheet thead th{background:#111722;color:#aab0bf}
-#auctionApp #step3 table.sheet th,
-#auctionApp #step3 table.sheet td{border:1px solid var(--border);padding:6px 8px;text-align:center;vertical-align:middle}
-
-/* 팀 시트 */
+#auctionApp #step3 table.sheet th,#auctionApp #step3 table.sheet td{border:1px solid var(--border);padding:6px 8px;text-align:center;vertical-align:middle}
 #auctionApp #teamSheet{font-size:11px}
 #auctionApp #teamSheet tbody td{padding:3px 6px;line-height:1.15}
 #auctionApp #teamSheet colgroup col:nth-child(1),
@@ -108,271 +83,133 @@ body[data-state="STEP3"] #auctionApp.container{
 #auctionApp #step3 td.point{color:var(--accent)}
 #auctionApp #step3 td.point.num{text-align:right}
 #auctionApp #step3 td.tier{color:#9ca3af}
-#auctionApp #step3 td.pos { color: var(--accent-2, #4da3ff); }
-
-/* 콘솔 확대/타이포 강화 */
-#auctionApp #step3 .console{margin-top:14px;padding:14px;border:1px dashed var(--border);border-radius:10px}
-#auctionApp #step3 .console.tall-console{min-height:390px;}
-#auctionApp #step3 .console.console-xl{padding:18px;}
-#auctionApp #step3 .kv-row{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:12px;
-  margin-bottom:8px;
-}
-
-#auctionApp #step3 .kv-row.two{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
-  gap:12px;
-  margin-bottom:8px;
-}
-
+#auctionApp #step3 td.pos{color:var(--accent-2, #4da3ff)}
+#auctionApp #step3 .console{margin-top:14px;padding:18px;border:1px dashed var(--border);border-radius:10px}
+#auctionApp #step3 .console.tall-console{min-height:390px}
+#auctionApp #step3 .kv-row{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:8px}
+#auctionApp #step3 .kv-row.two{grid-template-columns:1fr !important}
 #auctionApp #step3 .console .kv{
-  display:grid;
-  grid-template-columns:auto 1fr;
-  align-items:center;
-  gap:12px;
-  background:#0e1218;
-  border:1px solid var(--border);
-  padding:14px 16px;
-  border-radius:14px;
+  display:flex;align-items:center;gap:10px;background:#0e1218;border:1px solid var(--border);
+  padding:12px 14px;border-radius:14px
 }
 #auctionApp #step3 .console .kv .k{
-  text-align:left;
-  justify-self:start;
-  font-size:15px;
-  color:#9096a6;
+  flex:0 0 var(--kv-label-w);
+  width:var(--kv-label-w);
+  min-width:var(--kv-label-w);
+  font-size:14px;color:#9096a6;text-align:left;white-space:nowrap
 }
-/* 값: 가운데 정렬 */
 #auctionApp #step3 .console .kv .v{
-  width:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  font-weight:800;
-  font-size:24px;
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  flex:1 1 auto;display:flex;align-items:center;justify-content:center;
+  text-align:center;font-weight:800;font-size:24px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
 }
-#auctionApp #step3 .console .kv .v#countdown{font-size:28px;}
-#auctionApp #step3 .console .kv .v#currentTarget{display:flex;justify-content:center;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-
-/* 컨트롤: 입력/버튼 크게 */
-#auctionApp #step3 .controls{width:100%}
-#auctionApp #step3 .controls .ig{display:flex;width:100%;gap:0}
-#auctionApp #step3 .controls .ig > *{border-radius:0}
-#auctionApp #step3 .controls .ig > :first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
-#auctionApp #step3 .controls .ig > :last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+#auctionApp #step3 .console .kv .v#countdown{font-size:28px}
+#auctionApp #step3 .controls{width:100%;margin-top:12px;}
+#auctionApp #step3 .controls .ig{display:flex;width:100%;gap:8px}
 #auctionApp #step3 .controls .ig input#bidAmount.input-number{
-  flex:1 1 auto;width:auto;min-width:160px;text-align:center;height:56px;font-size:20px;padding:12px 14px;
+  flex:1 1 auto;min-width:160px;text-align:center;height:56px;font-size:30px;padding:12px 14px;border-radius:10px
 }
 #auctionApp #step3 .controls .ig .btn{
-  flex:0 0 auto;height:56px;font-size:18px;padding:0 18px;
+  flex:0 0 auto;height:56px;font-size:18px;padding:0 20px;border-radius:10px
 }
-#auctionApp #step3 .controls .ig .btn + .btn{border-left:0}
-#auctionApp #step3 .row.top{margin-top:10px}
-
-/* 퀵증가/감소 UI 제거 */
-#auctionApp #step3 .quickline,
-#auctionApp #step3 .minusline{display:none !important}
-
-/* 선수 리스트 높이 축소(콘솔 공간 확보) */
-#auctionApp #step3 .tbl-scroll.tall.players.compact-players{max-height:418px;}
-
-/* 기타 */
 #auctionApp #step3 .console .hint{margin-top:8px}
-#auctionApp #step3 .tbl-scroll::-webkit-scrollbar{height:10px;width:10px}
-#auctionApp #step3 .tbl-scroll::-webkit-scrollbar-thumb{background:#2a2f3a;border-radius:10px}
-#auctionApp #step3 #teamSheet td.point:not(.num),
-#auctionApp #step3 #teamSheet td.tier,
-#auctionApp #step3 #teamSheet td.pos { color: #fff !important; }
-#auctionApp #playerTable tr.current { background: #1f2b44 !important; }
-#auctionApp #playerTable tr.done { opacity: .85; }
-#auctionApp #playerBody tr.won td { text-decoration: overline; }
-#auctionApp #playerBody tr.sold { background: rgba(150,155,165,0.18) !important; }
-tr.leading { opacity: 0.75; }
-@media (max-width: 720px){
-  #auctionApp #step3 .kv-row.two{ grid-template-columns:1fr !important; }
-}
-
-.muted { opacity: .7; }
-
+#playerTable tr.current td{background:rgba(77,163,255,.12)}
+#playerTable tr.leading{opacity:.8}
+#playerTable tr.sold td{background:rgba(150,155,165,.18)}
+#playerTable tr.won td{text-decoration:overline}
+#auctionApp #step3 .tbl-scroll.tall.players.compact-players{max-height:418px}
 #auctionApp #step3 input[type=number]::-webkit-inner-spin-button,
-#auctionApp #step3 input[type=number]::-webkit-outer-spin-button{
-  -webkit-appearance: none;
-  margin: 0;
+#auctionApp #step3 input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#auctionApp #step3 input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.muted{opacity:.7}
+#auctionApp #step3 .kv-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
-#auctionApp #step3 input[type=number]{
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-
-/* ===== 입찰 콘솔 값 정중앙 오버라이드 (append at end) ===== */
-
-/* 라벨 폭을 고정해서 값 영역을 안정화 */
-#auctionApp #step3 .console .kv{
-  grid-template-columns: 120px minmax(0,1fr) !important;
-}
-
-/* 값 셀을 셀 전체로 확장(이전 justify-self:center 무력화) */
-#auctionApp #step3 .console .kv .v{
-  justify-self: stretch !important;
-  width: 100% !important;
+#auctionApp #step3 .kv.two-line{
   display: flex !important;
+  flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
+  height: 110px;
+  padding: 12px 14px;
+  gap: 6px;
+}
+#auctionApp #step3 .kv.two-line .k{
+  flex: none !important;
   text-align: center !important;
+  font-size: 14px;
+  color: #9096a6;
+}
+#auctionApp #step3 .kv.two-line .v{
+  flex: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 24px;
 }
 
-/* 개별 값 강화: 현재가/남은시간 */
-#currentPrice, #countdown{
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 100% !important;
+#auctionApp #step3 .kv.two-line .v#countdown{
+  font-size: 30px;
 }
-
-/* 숫자 입력창도 보강(이미 중앙이면 영향 없음) */
-#auctionApp #step3 .controls .ig input#bidAmount.input-number{
-  text-align: center !important;
+#auctionApp #step3 .kv-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
-
-#auctionApp #step3 .console .kv .v#bidStatus {
+#auctionApp #step3 .kv.two-line .v#bidStatus{
   display:block;
   max-width:100%;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-
-/* 네 박스(현재가/입찰자/내 잔액/남은시간) 동일 규격 */
-#auctionApp #step3 .console .kv-row.two .kv {
-  height: 100px; /* 현재가 박스 높이에 맞춰 동일 고정 */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
+#auctionApp #step3 #myBudgetHold{
+  font-size:14px;
+  opacity:.75;
+  margin-left:6px;
 }
-
-/* 라벨 공통 */
-#auctionApp #step3 .console .kv-row.two .kv .k {
-  font-size: 14px;
-  color: #9096a6;
-  text-align: center;
-  width: 100%;
-}
-
-/* 값 공통 */
-#auctionApp #step3 .console .kv-row.two .kv .v {
-  font-size: 23px;
-  font-weight: 800;
-  text-align: center;
-  width: 100%;
+#auctionApp #step3 .kv.two-line .v#bidStatus {
+  display: block;
+  width: 220px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
+  margin: 0 auto;
+}
+
+#auctionApp #step3 .kv.two-line .v {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px; /* 숫자와 잔여 사이 약간의 여백 */
 }
 
-/* 카운트다운은 더 큼 */
-#auctionApp #step3 .console .kv-row.two .kv .v#countdown {
-  font-size: 30px;
+#auctionApp #step3 #myBudgetHold {
+  font-size: 12px;
+  opacity: .75;
+  margin: 0;
+  line-height: 1;
 }
 
-/* 입찰 입력/버튼 그룹 간격 및 버튼 라운드 처리 */
-#auctionApp #step3 .controls .ig {
-  display: flex;
-  width: 100%;
-  gap: 8px; /* 입력박스와 버튼 사이 여백 */
+#auctionApp #teamSheet td.leader.nick,
+#auctionApp #teamSheet td.m1.nick,
+#auctionApp #teamSheet td.m2.nick,
+#auctionApp #teamSheet td.m3.nick,
+#auctionApp #teamSheet td.m4.nick {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+#auctionApp #playerBody tr.won td { text-decoration: none !important; }
 
-#auctionApp #step3 .controls .ig input#bidAmount.input-number {
-  flex: 1 1 auto;
-  min-width: 160px;
-  text-align: center;
-  height: 56px;
-  font-size: 30px;
-  padding: 12px 14px;
-  border-radius: 10px; /* 입력창도 라운드 */
-}
+/* 낙찰가(포인트) 칸만 강조 색 유지 */
+#auctionApp #teamSheet td.point:not(.num) { color: var(--accent) !important; }
 
-#auctionApp #step3 .controls .ig .btn {
-  flex: 0 0 auto;
-  height: 56px;
-  font-size: 18px;
-  padding: 0 20px;
-  border-radius: 10px; /* 버튼 둥글게 */
-}
-
-#auctionApp #step3 .controls .ig .btn + .btn {
-  margin-left: 6px; /* 버튼끼리도 살짝 띄움 */
-}
-
-#playerTable tr.current td{background:rgba(77,163,255,.12)}
-#playerTable tr.leading{opacity:.8}
-#playerTable tr.sold td{background:rgba(150,155,165,.18)}
-#playerTable tr.won td{text-decoration:overline}
-
-#auctionApp #teamSheet td.nick{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#auctionApp #teamSheet td.leader.nick{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#auctionApp #step3 .console .kv .v#bidStatus{display:block !important;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-/* === 우측 콘솔 라벨 고정폭 + 값 중앙정렬(정렬 불일치 해결) === */
-/* 각 박스는 가로 플렉스, 이전 고정 높이/그리드 설정 무력화 */
-#auctionApp #step3 .console .kv-row.two .kv{
-  display:flex !important;
-  flex-direction:row !important;
-  align-items:center !important;
-  gap:10px !important;
-  grid-template-columns:none !important; /* 과거 grid 해제 */
-  height:auto !important;                /* 100px 고정 해제 */
-  padding:12px 14px !important;
-  position: relative;                    /* 잔액 보조 텍스트 절대배치용 */
-}
-
-/* 라벨: 모든 박스 동일한 고정폭(“현재 경매가” 기준) */
-#auctionApp #step3 .console .kv-row.two .kv .k{
-  flex:0 0 120px !important;  /* 고정폭 */
-  width:120px !important;
-  text-align:left !important;
-}
-
-/* 값: 박스 우측 영역에서 항상 가운데 정렬 */
-#auctionApp #step3 .console .kv-row.two .kv .v{
-  flex:1 1 auto !important;
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;  /* 중앙 정렬 핵심 */
-  text-align:center !important;
-  overflow:hidden !important;
-  text-overflow:ellipsis !important;
-  white-space:nowrap !important;
-  font-size:24px !important;          /* 기본 값 크기 */
-}
-
-/* 카운트다운만 조금 더 큼 */
-#auctionApp #step3 .console .kv-row.two .kv .v#countdown{
-  font-size:28px !important;
-}
-
-/* '내 잔액' 숫자 24px 유지 */
-#auctionApp #step3 .console .kv .v#myBudget{
-  font-size:24px !important;
-}
-
-/* 잔액 보조 텍스트는 우측에 겹쳐 배치(값 중앙 정렬에 영향 없게) */
-#auctionApp #step3 #myBudgetHold{
-  position:absolute;
-  right:12px;
-  top:50%;
-  transform:translateY(-50%);
-  margin-left:0 !important; /* 기존 margin-left 무력화 */
-}
+/* 포지션/티어도 흰색 고정 (기존 파란/회색 제거) */
+#auctionApp #step3 #teamSheet td.tier,
+#auctionApp #step3 #teamSheet td.pos { color:#fff !important; }
