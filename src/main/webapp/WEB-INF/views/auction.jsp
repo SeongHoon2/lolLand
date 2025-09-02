@@ -846,7 +846,7 @@
     }
   });
 
-  function syncState(){
+  function syncState(){ 
       if (!G.code) return;
       $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/state")
           .done(function(res){
