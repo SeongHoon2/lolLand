@@ -246,14 +246,15 @@ public class AuctionController {
         if (!"ING".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "ING 상태 아님");
         Long aucSeq = ((Number)auc.get("SEQ")).longValue();
 
-        // 이미 BIDDING 중이면 현황만 브로드캐스트
+        // 이미 BIDDING 중이면 현황만 브로드캐스트 (타이머는 유지)
         Map<String,Object> current = auctionService.findCurrentPickSnapshot(aucSeq);
         if (current != null) {
+            Long pickId = ((Number)current.get("pickId")).longValue();
+            Long ddl = autoRunner.peekDeadline(aucSeq);            // ← 타이머 조회만
+            if (ddl != null) current.put("deadlineTs", ddl);       // ← 마감시각 보강
             msg.convertAndSend("/topic/auc."+aucSeq+".state", current);
-            autoRunner.start(aucSeq);
             return resp(true, null, current);
         }
-
         // 라운드/픽 생성만, 실제 시작은 관리자 개별 시작으로
         Map<String,Object> waiting = auctionService.initRoundAndPrepareFirstPick(aucSeq);
         msg.convertAndSend("/topic/auc."+aucSeq+".state", waiting);
@@ -346,8 +347,16 @@ public class AuctionController {
         if (!"ING".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "ING 상태 아님");
 
         Long aucSeq = ((Number)auc.get("SEQ")).longValue();
-        Map<String,Object> s = auctionService.peekState(aucSeq);
-        return resp(true, null, s);
+
+        Map<String,Object> cur = auctionService.findCurrentPickSnapshot(aucSeq);
+        if (cur != null) {
+            Long ddl = autoRunner.peekDeadline(aucSeq);
+            if (ddl != null) cur.put("deadlineTs", ddl);
+            return resp(true, null, cur);
+        }
+
+        Map<String,Object> r = auctionService.peekState(aucSeq); // 여긴 deadlineTs 없음
+        return resp(true, null, r);
     }
 
 }

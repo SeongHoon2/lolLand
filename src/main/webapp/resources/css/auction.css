@@ -200,11 +200,12 @@ body[data-state="STEP3"] #auctionApp.container{
 #auctionApp #teamSheet td.m2.nick,
 #auctionApp #teamSheet td.m3.nick,
 #auctionApp #teamSheet td.m4.nick {
-  max-width: 120px;
+  width: auto !important;          /* ← 126px 제거 */
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: nowrap;              /* 말줄임 위해 유지 */
 }
+
 #auctionApp #playerBody tr.won td { text-decoration: none !important; }
 
 /* 낙찰가(포인트) 칸만 강조 색 유지 */
@@ -213,3 +214,9 @@ body[data-state="STEP3"] #auctionApp.container{
 /* 포지션/티어도 흰색 고정 (기존 파란/회색 제거) */
 #auctionApp #step3 #teamSheet td.tier,
 #auctionApp #step3 #teamSheet td.pos { color:#fff !important; }
+
+
+#teamSheet { table-layout: fixed; width:100%; }
+#teamSheet colgroup col:nth-child(n+5) {
+  width: calc((100% - 320px) / 5) !important;
+}

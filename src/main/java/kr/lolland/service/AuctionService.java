@@ -325,6 +325,7 @@ public class AuctionService {
         snap.put("pickId", pick.get("PICK_ID"));
         snap.put("targetNick", pick.get("TARGET_NICK"));
         snap.put("highestBid", ((Number)pick.get("HIGHEST_BID")).intValue());
+        snap.put("highestTeam", pick.get("HIGHEST_TEAM"));
         snap.put("deadlineTs", System.currentTimeMillis()+10000L);
         return snap;
     }
