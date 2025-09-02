@@ -77,8 +77,10 @@ public interface AuctionDao {
 
 	Long findTeamIdByLeader(@Param("aucSeq") Long aucSeq, @Param("nick")   String nick);
 
-    /* ★ 추가: 선수(비리더) 정보 조회 (티어/포지션용) */
     Map<String,Object> selectMemberByNick(@Param("aucSeq") Long aucSeq, @Param("nick") String nick);
     
     List<Map<String,Object>> selectTeamMembersByAuc(@Param("aucSeq") Long aucSeq);
+    
+    int countTeamMembersByTeam(@Param("teamId") Long teamId);
+
 }

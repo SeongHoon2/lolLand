@@ -246,11 +246,13 @@ public class AuctionController {
         if (!"ING".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "ING 상태 아님");
         Long aucSeq = ((Number)auc.get("SEQ")).longValue();
 
-        // 이미 BIDDING 중이면 현황만 브로드캐스트
+        // 이미 BIDDING 중이면 현황만 브로드캐스트 (타이머는 유지)
         Map<String,Object> current = auctionService.findCurrentPickSnapshot(aucSeq);
         if (current != null) {
+            Long pickId = ((Number)current.get("pickId")).longValue();
+            Long ddl = autoRunner.peekDeadline(aucSeq);            // ← 타이머 조회만
+            if (ddl != null) current.put("deadlineTs", ddl);       // ← 마감시각 보강
             msg.convertAndSend("/topic/auc."+aucSeq+".state", current);
-            autoRunner.start(aucSeq);
             return resp(true, null, current);
         }
 
@@ -259,6 +261,7 @@ public class AuctionController {
         msg.convertAndSend("/topic/auc."+aucSeq+".state", waiting);
         return resp(true, null, waiting);
     }
+
 
 
     @GetMapping("/{code}/picks/{pickId}/controls")
@@ -338,5 +341,25 @@ public class AuctionController {
         autoRunner.reset(aucSeq, ((Number)picked.get("pickId")).longValue(), 10);
         return resp(true, null, picked);
     }
+
+    @GetMapping("/{code}/state")
+    public Map<String,Object> state(@PathVariable String code){
+        Map<String,Object> auc = auctionService.getAucByRandomCode(code);
+        if (auc == null) return resp(false, "경매 없음");
+        if (!"ING".equals(String.valueOf(auc.get("A_STATUS")))) return resp(false, "ING 상태 아님");
+
+        Long aucSeq = ((Number)auc.get("SEQ")).longValue();
+
+        Map<String,Object> cur = auctionService.findCurrentPickSnapshot(aucSeq);
+        if (cur != null) {
+            Long ddl = autoRunner.peekDeadline(aucSeq); // ← 조회 전용
+            if (ddl != null) cur.put("deadlineTs", ddl);
+            return resp(true, null, cur);
+        }
+
+        Map<String,Object> r = auctionService.peekState(aucSeq); // 여긴 deadlineTs 없음
+        return resp(true, null, r);
+    }
+
 
 }
