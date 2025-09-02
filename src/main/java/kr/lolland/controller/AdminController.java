@@ -40,7 +40,7 @@ public class AdminController {
             	//keyPath = "C:/Users/znfmf/Downloads/test/lolLandKey.json"; // sub
             	//keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
             } else {
-                keyPath = "/opt/etc/keys/lolLandKey.json";
+                keyPath = "/opt/etc/keys/lolLandKey.json"; 
             }
             NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
