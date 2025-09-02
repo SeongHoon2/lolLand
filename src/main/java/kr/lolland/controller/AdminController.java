@@ -34,7 +34,7 @@ public class AdminController {
         Map<String,Object> res = new HashMap<>();
         try {
             String keyPath;
-            String osName = System.getProperty("os.name").toLowerCase();
+            String osName = System.getProperty("os.name").toLowerCase();  
             if (osName.contains("win")) {
             	keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";  // main
             	//keyPath = "C:/Users/znfmf/Downloads/test/lolLandKey.json"; // sub
