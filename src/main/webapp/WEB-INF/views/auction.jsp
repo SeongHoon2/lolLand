@@ -670,118 +670,116 @@
   }
 
   function updateAuctionConsole(s){
-    if (!s) return;
+      if (!s) return;
 
-	if (s.idle === true || s.roundEnd === true) {
-	   $("#btnBegin").removeData('pickid').prop('disabled', true);
-	   $("#currentTarget").text("-");
-	   $("#currentPrice").text(0);
-	   $("#bidStatus").text("-");
-	   $("#countdown").text("--").css({color:'', 'font-weight':''});
-	   return;
-	}
-	
-	if (s.assigned === true || s.assigned === false || s.requeued === true) {
-		$("#playerBody tr").removeClass("leading current");
-		$("#bidStatus").text("-");
-	}
-	
-    if (s.pickId && s.pickId !== LAST_PICK_ID) {
-      LAST_PICK_ID = s.pickId;
-      G.currentPickId = s.pickId;
+  	if (s.idle === true || s.roundEnd === true) {
+  	   $("#btnBegin").removeData('pickid').prop('disabled', true);
+  	   $("#currentTarget").text("-");
+  	   $("#currentPrice").text(0);
+  	   $("#bidStatus").text("-");
+  	   $("#countdown").text("--").css({color:'', 'font-weight':''});
+  	   return;
+  	}
+  	
+  	if (s.assigned === true || s.assigned === false || s.requeued === true) {
+  		$("#playerBody tr").removeClass("leading current");
+  		$("#bidStatus").text("-");
+  	}
+  	
+      if (s.pickId && s.pickId !== LAST_PICK_ID) {
+        LAST_PICK_ID = s.pickId;
+        G.currentPickId = s.pickId;
 
-      clearActiveFocus();
-      $("#bidAmount").val(0);
-      $("#currentPrice").text(0);
-      $("#playerBody tr").removeClass("leading current");
-      $("#myBudgetHold").text("");
-      $("#btnBegin").removeData('pickid').prop('disabled', true);
-      $("#bidStatus").text("-");
-    }
+        clearActiveFocus();
+        $("#bidAmount").val(0);
+        $("#currentPrice").text(0);
+        $("#playerBody tr").removeClass("leading current");
+        $("#myBudgetHold").text("");
+        $("#btnBegin").removeData('pickid').prop('disabled', true);
+        $("#bidStatus").text("-");
+      }
 
-    if (typeof s.targetNick === 'string') $("#currentTarget").text(s.targetNick);
-    if (typeof s.highestBid === 'number') $("#currentPrice").text(s.highestBid);
+      if (typeof s.targetNick === 'string') $("#currentTarget").text(s.targetNick);
+      if (typeof s.highestBid === 'number') $("#currentPrice").text(s.highestBid);
 
-    if (typeof s.deadlineTs === 'number') setCountdown(s.deadlineTs);
+      if (typeof s.deadlineTs === 'number') setCountdown(s.deadlineTs);
 
-    if (typeof s.targetNick === 'string' && !s.assigned) {
-      highlightCurrentByNick(s.targetNick);
-    }
+      if (typeof s.targetNick === 'string' && !s.assigned) {
+        highlightCurrentByNick(s.targetNick);
+      }
 
-    if (s.targetNick && typeof s.highestBid === 'number' && !s.assigned) {
-      $("#playerBody tr").each(function(){
-        var $tr = $(this);
-        var $tds = $tr.find("td");
-        if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
-        	if (!$tr.hasClass('sold')) {
-	        	$tds.eq(5).text(s.highestBid);
-	        	$tr.addClass("leading");
-        	}
-        } else {
-          $tr.removeClass("leading");
-        }
-      });
-    }
+      if (s.targetNick && typeof s.highestBid === 'number' && !s.assigned) {
+        $("#playerBody tr").each(function(){
+          var $tr = $(this);
+          var $tds = $tr.find("td");
+          if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
+          	if (!$tr.hasClass('sold')) {
+  	        	$tds.eq(5).text(s.highestBid);
+  	        	$tr.addClass("leading");
+          	}
+          } else {
+            $tr.removeClass("leading");
+          }
+        });
+      }
 
-    if (G.myTeamId && s.highestTeam && typeof s.highestBid === 'number') {
-      if (String(G.myTeamId) === String(s.highestTeam)) {
-        var currentLeft = parseInt($("#myBudget").text()||"0",10);
-        $("#myBudgetHold").text("잔여 : " + Math.max(0, currentLeft - s.highestBid));
-      } else {
-        $("#myBudgetHold").text("");
-      }
-    }
+      if (G.myTeamId && s.highestTeam && typeof s.highestBid === 'number') {
+        if (String(G.myTeamId) === String(s.highestTeam)) {
+          var currentLeft = parseInt($("#myBudget").text()||"0",10);
+          $("#myBudgetHold").text("잔여 : " + Math.max(0, currentLeft - s.highestBid));
+        } else {
+          $("#myBudgetHold").text("");
+        }
+      }
 
-    if (!s.assigned && s.highestTeam) {
-    	  var leader = G.leaderNickByTeamId && G.leaderNickByTeamId[String(s.highestTeam)];
-    	  $("#bidStatus").text(leader || "-");
-    }
+      if (!s.assigned && s.highestTeam) {
+      	  var leader = G.leaderNickByTeamId && G.leaderNickByTeamId[String(s.highestTeam)];
+      	  $("#bidStatus").text(leader || "-");
+      }
 
-    if (s.assigned === true || s.assigned === false || s.requeued === true) {
-      $("#playerBody tr").removeClass("leading current");
-      $("#bidStatus").text("-");
-    }
+      if (s.assigned === true || s.assigned === false || s.requeued === true) {
+        $("#playerBody tr").removeClass("leading current");
+        $("#bidStatus").text("-");
+      }
 
-    if (s.assigned === true) {
-      $("#myBudgetHold").text("");
-      if (s.targetNick) {
-        $("#playerBody tr").each(function(){
-          var $tds = $(this).find("td");
-          if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
-            $tds.eq(5).text(s.price != null ? s.price : "-");
-			$(this).addClass("sold won");
-            return false;
-          }
-        });
-      }
-	  var applied = applyAssignmentToTeamSheet(s);
-	  if (!applied) { PENDING_ASSIGN = s; }
-	  setTimeout(function(){ loadStep3(); }, applied ? 250 : 0);
-    }
+      if (s.assigned === true) {
+        $("#myBudgetHold").text("");
+        if (s.targetNick) {
+          $("#playerBody tr").each(function(){
+            var $tds = $(this).find("td");
+            if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
+              $tds.eq(5).text(s.price != null ? s.price : "-");
+  			$(this).addClass("sold won");
+              return false;
+            }
+          });
+        }
+  	  applyAssignmentToTeamSheet(s);
+      }
 
-    if (s.pickId && !s.assigned) {
-      $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.pickId + "/controls")
-        .done(toggleControlsFromResp);
-    }
-	
-	if (!s.pickId && (s.waiting === true || s.waitingPickId != null || (s.nextPickId && !s.deadlineTs))) {
-	   G.currentPickId = null;
-	   $("#playerBody tr").removeClass("leading current");
-	   $("#currentPrice").text(0);
-	   $("#bidAmount").val(0);
-	   $("#myBudgetHold").text("");
-	   $("#countdown").text("--").css({color:'', 'font-weight':''});
-	   $("#bidStatus").text("-");
-	
-	   var nextNick = s.nextTarget || s.targetNick || "-";
-	   $("#currentTarget").text(String(nextNick||"-"));
-	   highlightCurrentByNick(nextNick);
-	
-	   var pid = s.waitingPickId || s.nextPickId || null;
-	   $("#btnBegin").data('pickid', pid).prop('disabled', !pid);
-	   return;
-	}
-  }
+      if (s.pickId && !s.assigned) {
+        $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.pickId + "/controls")
+          .done(toggleControlsFromResp);
+      }
+  	
+  	if (!s.pickId && (s.waiting === true || s.waitingPickId != null || (s.nextPickId && !s.deadlineTs))) {
+  	   G.currentPickId = null;
+  	   $("#playerBody tr").removeClass("leading current");
+  	   $("#currentPrice").text(0);
+  	   $("#bidAmount").val(0);
+  	   $("#myBudgetHold").text("");
+  	   $("#countdown").text("--").css({color:'', 'font-weight':''});
+  	   $("#bidStatus").text("-");
+  	
+  	   var nextNick = s.nextTarget || s.targetNick || "-";
+  	   $("#currentTarget").text(String(nextNick||"-"));
+  	   highlightCurrentByNick(nextNick);
+  	
+  	   var pid = s.waitingPickId || s.nextPickId || null;
+  	   $("#btnBegin").data('pickid', pid).prop('disabled', !pid);
+  	   return;
+  	}
+    }
 
   $(document).on("click", "#btnBid", function(){
     if (!G.code) { alert("세션 없음"); return; }
@@ -849,53 +847,58 @@
   });
 
   function syncState(){
-	  if (!G.code) return;
-	  $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/state")
-	    .done(function(res){
-	      if (res && res.success===true && res.data){
-	        updateAuctionConsole(res.data);
-	      }
-	    });
-	}
+      if (!G.code) return;
+      $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/state")
+          .done(function(res){
+              if (res && res.success===true && res.data){
+                  updateAuctionConsole(res.data);
+              }
+          });
+  }
 
-	function applyAssignmentToTeamSheet(assign){
-	  if (!assign || !assign.teamId) return false;
-	  var tid = String(assign.teamId);
-	  var rowIdx = G.teamRowById && G.teamRowById[tid];
-	  if (!rowIdx) return false;
+  function applyAssignmentToTeamSheet(assign){
+    if (!assign || !assign.teamId) return false;
+    var tid = String(assign.teamId);
+    var rowIdx = G.teamRowById && G.teamRowById[tid];
+    if (!rowIdx) return false;
 
-	  var $rows = $('#teamSheetBody').find('tr[data-team="'+rowIdx+'"]');
+    var $rows = $('#teamSheetBody').find('tr[data-team="'+rowIdx+'"]');
 
-	  // 예산(잔여/사용) 즉시 반영
-	  if (typeof assign.teamBudgetLeft === 'number') {
-	    var init = parseInt($rows.eq(0).find('td.init').text()||"0", 10);
-	    var left = assign.teamBudgetLeft;
-	    $rows.eq(0).find('td.left').text(left);
-	    $rows.eq(0).find('td.used').text(Math.max(0, init - left));
+    if (typeof assign.teamBudgetLeft === 'number') {
+      var init = parseInt($rows.eq(0).find('td.init').text()||"0", 10);
+      var left = assign.teamBudgetLeft;
+      $rows.eq(0).find('td.left').text(left);
+      $rows.eq(0).find('td.used').text(Math.max(0, init - left));
 
-	    // 내 팀이면 상단 '내 잔액'도 동기화
-	    if (G.myTeamId && String(G.myTeamId) === tid) {
-	      $("#myBudget").text(left);
-	      $("#myBudgetHold").text("");
-	    }
-	  }
+      if (G.myTeamId && String(G.myTeamId) === tid) {
+        $("#myBudget").text(left);
+        $("#myBudgetHold").text("");
+      }
+    }
 
-	  // 팀원 자리 중 첫 번째 빈 칸(m1~m4) 채우기
-	  var slot = null;
-	  for (var s=1; s<=4; s++){
-	    var $nickCell = $rows.eq(0).find('td.m'+s+'.nick');
-	    var nickText = ($nickCell.text()||'').trim();
-	    if (!nickText || nickText === '-') { slot = s; break; }
-	  }
-	  if (!slot) return true; // 이미 4명 다 찬 경우
+    var slot = null;
+    for (var s=1; s<=4; s++){
+      var $nickCell = $rows.eq(0).find('td.m'+s+'.nick');
+      var nickText = ($nickCell.text()||'').trim();
+      if (!nickText || nickText === '-') { slot = s; break; }
+    }
+    
+    if (!slot) return true; 
 
-	  $rows.eq(0).find('td.m'+slot+'.nick').text(assign.targetNick || '-');
-	  $rows.eq(1).find('td.m'+slot+'.point').text((assign.price!=null)? assign.price : '-');
-	  $rows.eq(2).find('td.m'+slot+'.tier').text(assign.targetTier || '-');
-	  $rows.eq(3).find('td.m'+slot+'.pos').text(assign.targetMrole || '-');
+    var member = {
+        nick: assign.targetNick || '-',
+        price: assign.price != null ? assign.price : '-',
+        tier: assign.tier || '-',
+        pos: assign.mrole || assign.srole || assign.pos || '-'
+    };
+    
+    $rows.eq(0).find('td.m'+slot+'.nick').text(member.nick);
+    $rows.eq(1).find('td.m'+slot+'.point').text(member.price);
+    $rows.eq(2).find('td.m'+slot+'.tier').text(member.tier);
+    $rows.eq(3).find('td.m'+slot+'.pos').text(member.pos);
 
-	  return true;
-	}
+    return true;
+  }
 
 })(window.jQuery || window.$);
 </script>
