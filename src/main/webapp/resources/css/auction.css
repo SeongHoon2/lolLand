@@ -185,7 +185,7 @@ body[data-state="STEP3"] #auctionApp.container{
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px; /* 숫자와 잔여 사이 약간의 여백 */
+  gap: 4px;
 }
 
 #auctionApp #step3 #myBudgetHold {
@@ -200,16 +200,27 @@ body[data-state="STEP3"] #auctionApp.container{
 #auctionApp #teamSheet td.m2.nick,
 #auctionApp #teamSheet td.m3.nick,
 #auctionApp #teamSheet td.m4.nick {
-  max-width: 120px;
+  width: auto !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+#teamSheet { table-layout: fixed; width:100%; }
+
 #auctionApp #playerBody tr.won td { text-decoration: none !important; }
 
-/* 낙찰가(포인트) 칸만 강조 색 유지 */
 #auctionApp #teamSheet td.point:not(.num) { color: var(--accent) !important; }
 
-/* 포지션/티어도 흰색 고정 (기존 파란/회색 제거) */
 #auctionApp #step3 #teamSheet td.tier,
 #auctionApp #step3 #teamSheet td.pos { color:#fff !important; }
+
+/* 팀시트 전용: 넘친 가로/세로 스크롤 허용 */
+#teamSpreadsheet .tbl-scroll {
+  scrollbar-gutter: stable both-edges;
+}
+
+/* colgroup의 5~9번째 열(팀장+팀원1~4)을 남은폭 5등분으로 */
+#teamSheet colgroup col:nth-child(n+5) {
+  width: calc((100% - 320px) / 5) !important;
+}
