@@ -12,7 +12,7 @@
   <link rel="icon" href="/resources/img/logo.png" type="image/x-icon">
 </head>
 <body>
-<header class="header">
+<header class="header"> 
   <div class="container">
     <h1 class="brand">lolLand</h1>
 	<nav class="nav">
