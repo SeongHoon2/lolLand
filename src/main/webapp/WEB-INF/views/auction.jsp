@@ -187,7 +187,6 @@
   var STOMP=null, STOMP_SUB=null, STOMP_AUC_SUB=null;
   var RECONNECT_TIMER=null, RECONNECT_WAIT=300, MAX_WAIT=5000;
   var CNT_TIMER=null, LAST_PICK_ID=null;
-  var PENDING_ASSIGN = null;
 
   var URLS = {
     ws: "<c:url value='/ws-auction'/>",
@@ -209,12 +208,12 @@
     if(step==="STEP1") $("#step1").show();
     if(step==="STEP2") $("#step2").show();
     if(step==="STEP3"){
-        $("#step3").show();
-        syncState();
-        if (G.code) loadStep3(); else setTimeout(function(){ if(G.code) loadStep3(); }, 120);
-        if (STOMP && STOMP.connected) subscribeAuction();
-        if (G.role === 'ADMIN_GHOST') prepareRound();
-      }
+      $("#step3").show();
+      if (G.code) loadStep3(); else setTimeout(function(){ if(G.code) loadStep3(); }, 120);
+      if (STOMP && STOMP.connected) subscribeAuction();
+      syncState();
+      if (G.role === 'ADMIN_GHOST') prepareRound();
+    }
   }
 
   function renderLobby(data){
@@ -474,35 +473,39 @@
   }
 
   function loadStep3(){
-	  $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/step3/snapshot")
-	    .done(function(res){
-	      if(!res || res.success!==true){ alert(res && res.error ? res.error.msg : "스냅샷 실패"); return; }
-	      var data = res.data || {};
-	      renderTeamSheet(data.teams || [], data.teamMembers || {});
-	      if (PENDING_ASSIGN) {
-	    	  applyAssignmentToTeamSheet(PENDING_ASSIGN);
-	    	  PENDING_ASSIGN = null;
-	    	}
-	      renderPlayerTable(data.players || [], data.teamMembers || {});
-	      var me = (data.teams||[]).find(function(t){ return String(t.LEADER_NICK) === String(G.nick); });
-	      $("#myBudget").text(me ? (me.BUDGET_LEFT||0) : 0);
-	      if (PENDING_HILITE){ highlightCurrentByNick(PENDING_HILITE); PENDING_HILITE = null; }
-	      if (G.currentPickId){
-	        $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/controls")
-	          .done(toggleControlsFromResp);
-	      }
+    $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/step3/snapshot")
+     .done(function(res){
+       if(!res || res.success!==true){ alert(res && res.error ? res.error.msg : "스냅샷 실패"); return; }
+       var data = res.data || {};
+       renderTeamSheet(data.teams || [], data.teamMembers || {});
+       renderPlayerTable(data.players || [], data.teamMembers || {});
+       var me = (data.teams||[]).find(function(t){ return String(t.LEADER_NICK) === String(G.nick); });
+       $("#myBudget").text(me ? (me.BUDGET_LEFT||0) : 0);
+       $("#currentPrice").text(0);
+       $("#countdown").text("--").css({color:'', 'font-weight':''});
+       $("#currentTarget").text("-");
+       $("#bidStatus").text("-");
+       $("#bidAmount").val(0);
 
-	      if (G.myTeamId && data.teamMembers) {
-	        var ml = data.teamMembers[String(G.myTeamId)] || [];
-	        var full = ml.length >= 4; // 리더 제외 4명
-	        $("#btnBid, #btnAllin, #bidAmount").prop("disabled", full);
-	        $(".controls .ig").toggleClass("is-disabled", full);
-	        $(".hint").text(full ? "팀 정원 5명 완료" : "경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50");
-	      }
-	      setTimeout(syncState, 0);
-	    })
-	    .fail(function(xhr){ alert("스냅샷 호출 오류" + (xhr && xhr.status ? " ("+xhr.status+")" : "")); });
-	}
+       if (PENDING_HILITE){
+         highlightCurrentByNick(PENDING_HILITE);
+         PENDING_HILITE = null;
+       }
+       if (G.currentPickId){
+         $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/controls")
+           .done(toggleControlsFromResp);
+       }
+     })
+     .fail(function(xhr){ alert("스냅샷 호출 오류" + (xhr && xhr.status ? " ("+xhr.status+")" : "")); });
+
+    	if (G.myTeamId && (res && res.data && res.data.teamMembers)) {
+    	  var ml = res.data.teamMembers[String(G.myTeamId)] || [];
+    	  var full = ml.length >= 4; // 리더 제외 4명
+    	  $("#btnBid, #btnAllin, #bidAmount").prop("disabled", full);
+    	  $(".controls .ig").toggleClass("is-disabled", full);
+    	  if (full) $(".hint").text("팀 정원 5명 완료");
+    	}
+  }
 
   function renderTeamSheet(teams, membersByTeam){
 	  for (var i=1;i<=8;i++){
@@ -664,46 +667,31 @@
     if (!canBid) {
     	$(".hint").text("팀 정원 5명 완료");
     } else {
-   		if (c.zeroOnly) {
-   			$("#bidAmount").val(0).prop("readonly", true);
-   			$("#btnAllin").prop("disabled", true);
-   			$(".hint").text("2회 유찰: 0원만 가능");
-   		} else {
-   			$("#bidAmount").prop("readonly", false);
-   			$(".hint").text("경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50");
-   		}	
+    	$(".hint").text("경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50");
     }
   }
 
   function updateAuctionConsole(s){
-	  if (!s) return;
+    if (!s) return;
 
-	  if (s.roundEnd === true || s.idle === true) {
-	    G.currentPickId = null;
-	    $("#btnBegin").prop("disabled", true).removeData("pickid");
-	    $("#currentTarget").text("-");
-	    $("#currentPrice").text(0);
-	    $("#myBudgetHold").text("");
-	    $("#countdown").text("--").css({color:'', 'font-weight':''});
-	    $("#bidStatus").text("-");
-	    $("#playerBody tr").removeClass("leading current");
-	    return;
-	  }
+    if ((s.waiting === true) || (s.waitingPickId != null) || (s.nextPickId && !s.deadlineTs && !s.pickId)) {
+      G.currentPickId = null;
+      $("#playerBody tr").removeClass("leading current");
+      $("#currentPrice").text(0);
+      $("#bidAmount").val(0);
+      $("#myBudgetHold").text("");
+      $("#countdown").text("--").css({color:'', 'font-weight':''});
+      $("#bidStatus").text("-");
 
-    if (s.idle === true || s.roundEnd === true) {
-	    $("#btnBegin").removeData('pickid').prop('disabled', true);
-	    $("#currentTarget").text("-");
-	    $("#currentPrice").text(0);
-	    $("#bidStatus").text("-");
-	    $("#countdown").text("--").css({color:'', 'font-weight':''});
-	    return;
+      var nextNick = s.nextTarget || s.targetNick || "-";
+      $("#currentTarget").text(String(nextNick||"-"));
+      highlightCurrentByNick(nextNick);
+
+      var pid = s.waitingPickId || s.nextPickId || null;
+      $("#btnBegin").data('pickid', pid).prop('disabled', !pid);
+      return;
     }
-    
-    if (s.assigned === true || s.assigned === false || s.requeued === true) {
-    	$("#playerBody tr").removeClass("leading current");
-    	$("#bidStatus").text("-");
-    }
-    
+
     if (s.pickId && s.pickId !== LAST_PICK_ID) {
       LAST_PICK_ID = s.pickId;
       G.currentPickId = s.pickId;
@@ -767,39 +755,18 @@
           var $tds = $(this).find("td");
           if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
             $tds.eq(5).text(s.price != null ? s.price : "-");
-            $(this).addClass("sold won");
+            $(this).addClass("sold").removeClass("won");
             return false;
           }
         });
       }
-      var applied = applyAssignmentToTeamSheet(s);
-      if (!applied) { PENDING_ASSIGN = s; }
-      setTimeout(function(){ loadStep3(); }, applied ? 250 : 0);
+      loadStep3();
     }
 
     if (s.pickId && !s.assigned) {
       $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.pickId + "/controls")
         .done(toggleControlsFromResp);
     }
-
-    if (!s.pickId && (s.waiting === true || s.waitingPickId != null || (s.nextPickId && !s.deadlineTs))) {
-    	var pid = s.waitingPickId || s.nextPickId || null;
-        $("#btnBegin").data('pickid', pid).prop('disabled', !pid);
-    	G.currentPickId = null;
-    	$("#playerBody tr").removeClass("leading current");
-    	$("#currentPrice").text(0);
-    	$("#bidAmount").val(0);
-    	$("#myBudgetHold").text("");
-    	$("#countdown").text("--").css({color:'', 'font-weight':''});
-    	$("#bidStatus").text("-");
-    	var nextNick = s.nextTarget || s.targetNick || "-";
-    	$("#currentTarget").text(String(nextNick||"-"));
-    	highlightCurrentByNick(nextNick);
-    	var pid = s.waitingPickId || s.nextPickId || null;
-    	$("#btnBegin").data('pickid', pid).prop('disabled', !pid);
-    	return;
-    }
-    
   }
 
   $(document).on("click", "#btnBid", function(){
@@ -877,45 +844,5 @@
 	    });
 	}
 
-  function applyAssignmentToTeamSheet(assign){
-	  if (!assign || !assign.teamId) return false;
-	  var tid = String(assign.teamId);
-	  var rowIdx = G.teamRowById && G.teamRowById[tid];
-	  if (!rowIdx) return false;
-
-	  var $rows = $('#teamSheetBody').find('tr[data-team="'+rowIdx+'"]');
-
-	  // 예산(잔여/사용) 즉시 반영
-	  if (typeof assign.teamBudgetLeft === 'number') {
-	    var init = parseInt($rows.eq(0).find('td.init').text()||"0", 10);
-	    var left = assign.teamBudgetLeft;
-	    $rows.eq(0).find('td.left').text(left);
-	    $rows.eq(0).find('td.used').text(Math.max(0, init - left));
-
-	    // 내 팀이면 상단 '내 잔액'도 동기화
-	    if (G.myTeamId && String(G.myTeamId) === tid) {
-	      $("#myBudget").text(left);
-	      $("#myBudgetHold").text("");
-	    }
-	  }
-
-	  // 팀원 자리 중 첫 번째 빈 칸(m1~m4) 채우기
-	  var slot = null;
-	  for (var s=1; s<=4; s++){
-	    var $nickCell = $rows.eq(0).find('td.m'+s+'.nick');
-	    var nickText = ($nickCell.text()||'').trim();
-	    if (!nickText || nickText === '-') { slot = s; break; }
-	  }
-	  if (!slot) return true; // 이미 4명 다 찬 경우
-
-	  $rows.eq(0).find('td.m'+slot+'.nick').text(assign.targetNick || '-');
-	  $rows.eq(1).find('td.m'+slot+'.point').text((assign.price!=null)? assign.price : '-');
-	  $rows.eq(2).find('td.m'+slot+'.tier').text(assign.targetTier || '-');
-	  $rows.eq(3).find('td.m'+slot+'.pos').text(assign.targetMrole || '-');
-
-	  return true;
-	}
-
-  
 })(window.jQuery || window.$);
 </script>
