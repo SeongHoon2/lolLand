@@ -32,7 +32,7 @@ public class AuctionController {
     }
 
     private static final java.util.Set<String> ADMIN_WHITELIST =
-            new java.util.HashSet<String>(java.util.Arrays.asList("admin", "tjdgns"));
+            new java.util.HashSet<String>(java.util.Arrays.asList("admin", "lolland"));
 
     private static boolean isAdminNick(String nick) {
         return nick != null && ADMIN_WHITELIST.contains(nick.trim().toLowerCase(java.util.Locale.ROOT));
