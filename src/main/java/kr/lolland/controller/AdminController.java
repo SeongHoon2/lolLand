@@ -36,9 +36,9 @@ public class AdminController {
             String keyPath;
             String osName = System.getProperty("os.name").toLowerCase();  
             if (osName.contains("win")) {
-            	keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";  // main
+            	//keyPath = "C:/Users/SH/Downloads/test/lolLandKey.json";  // main
             	//keyPath = "C:/Users/znfmf/Downloads/test/lolLandKey.json"; // sub
-            	//keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
+            	keyPath = "C:/Users/User/Desktop/test/lolLandKey.json"; // work
             } else {
                 keyPath = "/opt/etc/keys/lolLandKey.json"; 
             }
@@ -75,16 +75,16 @@ public class AdminController {
             }
 
             Map<String, Integer> tierOrder = new HashMap<>();
-            tierOrder.put("C", 1);
+            tierOrder.put("C",  1);
             tierOrder.put("GM", 2);
-            tierOrder.put("M", 3);
-            tierOrder.put("D", 4);
-            tierOrder.put("E", 5);
-            tierOrder.put("P", 6);
-            tierOrder.put("G", 7);
-            tierOrder.put("S", 8);
-            tierOrder.put("B", 9);
-            tierOrder.put("I", 10);
+            tierOrder.put("M",  3);
+            tierOrder.put("D",  4);
+            tierOrder.put("E",  5);
+            tierOrder.put("P",  6);
+            tierOrder.put("G",  7);
+            tierOrder.put("S",  8);
+            tierOrder.put("B",  9);
+            tierOrder.put("I",  10);
 
             Collator coll = Collator.getInstance(Locale.KOREAN);
             coll.setStrength(Collator.PRIMARY);
@@ -92,18 +92,25 @@ public class AdminController {
             members.sort((a, b) -> {
                 String la = String.valueOf(a.getOrDefault("LEADERFLG","N"));
                 String lb = String.valueOf(b.getOrDefault("LEADERFLG","N"));
-                if (!la.equals(lb)) {
-                    return "Y".equals(lb) ? 1 : -1;
-                }
+                if (!la.equals(lb)) return "Y".equals(lb) ? 1 : -1;
+                String taRaw = String.valueOf(a.getOrDefault("TIER","Z")).trim().toUpperCase(Locale.ROOT);
+                String tbRaw = String.valueOf(b.getOrDefault("TIER","Z")).trim().toUpperCase(Locale.ROOT);
+                String baseA = taRaw.replaceAll("\\d+$", "");
+                String baseB = tbRaw.replaceAll("\\d+$", "");
 
-                String ta = String.valueOf(a.getOrDefault("TIER","Z"));
-                String tb = String.valueOf(b.getOrDefault("TIER","Z"));
-                int ra = tierOrder.getOrDefault(ta, Integer.MAX_VALUE);
-                int rb = tierOrder.getOrDefault(tb, Integer.MAX_VALUE);
-                if (ra != rb) {
-                    return Integer.compare(ra, rb);
+                int rankA = tierOrder.getOrDefault(baseA, Integer.MAX_VALUE);
+                int rankB = tierOrder.getOrDefault(baseB, Integer.MAX_VALUE);
+                if (rankA != rankB) {
+                    return Integer.compare(rankA, rankB);
                 }
-
+                int numA = 0, numB = 0;
+                java.util.regex.Matcher ma = java.util.regex.Pattern.compile("(\\d+)$").matcher(taRaw);
+                if (ma.find()) numA = Integer.parseInt(ma.group(1));
+                java.util.regex.Matcher mb = java.util.regex.Pattern.compile("(\\d+)$").matcher(tbRaw);
+                if (mb.find()) numB = Integer.parseInt(mb.group(1));
+                if (numA != numB) {
+                    return Integer.compare(numB, numA);
+                }
                 String na = String.valueOf(a.getOrDefault("NICK",""));
                 String nb = String.valueOf(b.getOrDefault("NICK",""));
                 return coll.compare(na, nb);
