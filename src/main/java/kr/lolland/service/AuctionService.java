@@ -306,7 +306,6 @@ public class AuctionService {
 
         Map<String,Object> next = auctionDao.selectNextReadyPick(aucSeq);
         if (next != null) {
-            // 자동 시작 제거: 관리자 개별 시작 대기
             out.put("waiting", true);
             out.put("waitingPickId", next.get("PICK_ID"));
             out.put("nextPickId", next.get("PICK_ID"));   // 호환
@@ -314,6 +313,9 @@ public class AuctionService {
         } else {
             auctionDao.updateRoundStatus(roundId, "END");
             out.put("roundEnd", true);
+            auctionDao.updateAucStatus(aucSeq, "END");
+            out.put("auctionEnd", true);
+            out.put("finished", true);
         }
         return out;
     }
@@ -424,5 +426,10 @@ public class AuctionService {
         idle.put("idle", true);
         return idle;
     }
-    
+
+    public boolean existsAnyMemberNick(Long aucSeq, String nick){
+        Integer cnt = auctionDao.countAnyMemberByNick(aucSeq, nick);
+        return cnt != null && cnt > 0;
+    }
+
 }

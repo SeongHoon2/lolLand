@@ -278,3 +278,60 @@ body[data-state="STEP3"] #auctionApp.container{
 }
 #auctionApp #step4 .member-chip .price { color:var(--accent); font-weight:800; margin-left:6px; }
 #auctionApp #step4 .member-chip .pos   { color:var(--accent-2); margin-left:6px; }
+
+/* STEP4: 스크롤 제거하고 전체 표시 */
+#auctionApp #step4 .tbl-scroll {
+  overflow: visible !important;   /* 스크롤 없앰 */
+  max-height: none !important;    /* 높이 제한 해제 */
+}
+
+/* STEP4: 테이블(그리드) 테두리/레이아웃 */
+#auctionApp #step4 table.sheet {
+  width: 100%;
+  border-collapse: collapse;      /* 겹치는 선 합치기 */
+  background: #0e1218;            /* STEP3과 동일 배경 */
+}
+
+#auctionApp #step4 table.sheet thead th {
+  background: #111722;
+  color: #aab0bf;
+}
+
+#auctionApp #step4 table.sheet th,
+#auctionApp #step4 table.sheet td {
+  border: 1px solid var(--border); /* 테두리 표시 */
+  padding: 6px 8px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+#auctionApp #step4 #finalTeamSheet { 
+  table-layout: fixed; 
+  font-size: 11px;                 /* 동일 타이포 크기 */
+}
+#auctionApp #step4 #finalTeamSheet tbody td { 
+  padding: 3px 6px; 
+  line-height: 1.15; 
+}
+#auctionApp #step4 #finalTeamSheet colgroup col:nth-child(1),
+#auctionApp #step4 #finalTeamSheet colgroup col:nth-child(2),
+#auctionApp #step4 #finalTeamSheet colgroup col:nth-child(3) {
+  width: 70px !important;
+}
+#auctionApp #step4 #finalTeamSheet colgroup col:nth-child(4) {
+  width: 110px !important;
+}
+#auctionApp #step4 #finalTeamSheet colgroup col:nth-child(n+5) {
+  width: calc((100% - 320px) / 5) !important;
+}
+
+#auctionApp #step4 .num        { text-align: right; }
+#auctionApp #step4 .used       { color: #ff9b62; }
+#auctionApp #step4 .left       { color: #58d68d; font-weight: 700; }
+#auctionApp #step4 td.sec      { background: #0f1420; color: #cbd1df; font-weight: 700; }
+#auctionApp #step4 td.nick     { font-weight: 700; }
+#auctionApp #step4 td.point    { color: var(--accent); }
+#auctionApp #step4 td.point.num{ text-align: right; }
+
+#auctionApp #step4 #finalTeamSheet td.tier,
+#auctionApp #step4 #finalTeamSheet td.pos { color:#fff !important; }

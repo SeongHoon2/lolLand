@@ -273,4 +273,12 @@
   FROM lolland.AUC_TEAM_MEMBER 
   WHERE TEAM_ID = #{teamId}
 </select>
+
+<select id="countAnyMemberByNick" resultType="int">
+  SELECT COUNT(1)
+  FROM lolland.AUC_MEMBER
+  WHERE AUC_SEQ = #{aucSeq}
+    AND NICK = #{nick} COLLATE utf8mb4_bin
+</select>
+
 </mapper>

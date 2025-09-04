@@ -1,9 +1,13 @@
 // src/main/java/kr/lolland/controller/AuctionAutoRunner.java
 package kr.lolland.controller;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -73,8 +77,13 @@ public class AuctionAutoRunner {
         try {
             Map<String,Object> out = service.finalizePick(aucSeq, pickId);
             cancel(aucSeq);
-            // 낙찰/재추가(waiting) 결과를 모두 실시간 전파
             msg.convertAndSend("/topic/auc."+aucSeq+".state", out);
+            if (Boolean.TRUE.equals(out.get("finished")) || Boolean.TRUE.equals(out.get("auctionEnd"))) {
+	               Map<String,Object> endMsg = new HashMap<>();
+	               endMsg.put("status", "END");
+	               endMsg.put("aucSeq", aucSeq);
+	               msg.convertAndSend("/topic/lobby."+aucSeq, endMsg);
+            }
         } catch (Exception ignore) {
             // 로깅만 필요 시 추가
         }
