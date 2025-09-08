@@ -275,7 +275,6 @@
   var G={ code:null, aucSeq:null, nick:null, role:null, currentPickId:null, teamRowById:null, myTeamId:null, leaderNickByTeamId:{} };
   var PENDING_HILITE = null;
 
-  // 내가 참여(조인)한 상태인지 확인
   function hasJoined(){
     return !!(G.code && G.nick);
   }
@@ -326,7 +325,7 @@
         .toggleClass("outline", isReady)
         .prop("disabled", !isOnline)
         .attr("title", isOnline ? "" : "오프라인 상태에서는 변경할 수 없습니다.");
-  } 
+  }
 
   function subscribeLobby(){
     if(!STOMP || !STOMP.connected || !G.aucSeq) return;
@@ -335,7 +334,18 @@
       try {
         var msg = JSON.parse(frame.body||"{}");
         if (!msg) return;
-        if (msg.status === 'END') { setStep('STEP4'); return; }
+        if (msg.status === 'END') {
+          if (hasJoined()) {
+            var role = G.role;
+            if (role === 'ADMIN_GHOST' || role === 'LEADER') {
+              setStep('STEP4');
+            } else {
+              alert('권한이 없어 결과 화면을 볼 수 없습니다.');
+              setStep('STEP2');
+            }
+          }
+          return;
+        }
         if (msg.status === 'ING') { if (hasJoined()) setStep('STEP3'); }
         renderLobby(msg);
       } catch(e){}
@@ -399,9 +409,19 @@
       var st = data.status || "WAIT";
       G.code   = code;
       G.aucSeq = data.aucSeq || G.aucSeq;
-      if (st === "ING") setStep("STEP3");     // 조인자만 afterJoin을 타므로 OK
-      else if (st === "END") setStep("STEP4"); // 일관되게 END => STEP4
-      else setStep("STEP2");
+      if (st === "ING") {
+        setStep("STEP3");
+      } else if (st === "END") {
+        var role = G.role;
+        if (role === 'ADMIN_GHOST' || role === 'LEADER') {
+          setStep("STEP4");
+        } else {
+          alert('권한이 없어 결과 화면을 볼 수 없습니다.');
+          setStep("STEP2");
+        }
+      } else {
+        setStep("STEP2");
+      }
       if (st === "ING") { loadStep3(); }
       if (st !== "END") connectStomp();
     }).fail(function(){
@@ -530,23 +550,30 @@
       if (res && res.success===true && data){
         G.aucSeq = data.aucSeq;
         G.code   = data.code;
-        G.nick   = data.nick; // 서버가 참여중인 유저 닉을 주는 경우에만 세팅
+        G.nick   = data.nick;
         if (data.role) { G.role = data.role; if (G.role === 'ADMIN_GHOST') { try{ document.body.classList.add('admin'); }catch(e){} } }
         renderLobby(data);
         if (data.status === "ING") {
-        	if (hasJoined()) {
-        		setStep("STEP3");
-        		loadStep3();
-        	} else {
-        		setStep("STEP2");       // 미참여자는 대기실로
-        	}
-        		connectStomp();
-       		} else if (data.status === "END") {
-        	    setStep("STEP4");
-        	} else {
-        		setStep("STEP2");
-        		connectStomp();
-        	}
+          if (hasJoined()) {
+            setStep("STEP3");
+            loadStep3();
+          } else {
+            setStep("STEP2");
+          }
+          connectStomp();
+        }
+        else if (data.status === "END") {
+          var role = data.role || G.role;
+          if (hasJoined() && (role === 'ADMIN_GHOST' || role === 'LEADER')) {
+            setStep("STEP4");
+          } else {
+            setStep("STEP2");
+          }
+        }
+        else {
+          setStep("STEP2");
+          connectStomp();
+        }
       } else if(cached && cached.code && cached.nick){
         $.ajax({
           url: URLS.auctionBase + encodeURIComponent(cached.code) + "/lobby/join",
@@ -572,7 +599,7 @@
           else setStep("STEP1");
         }).fail(function(){ setStep("STEP1"); });
       } else {
-        setStep("STEP1"); 
+        setStep("STEP1");
       }
     });
   }
@@ -599,7 +626,7 @@
 
         if (G.myTeamId && data.teamMembers) {
           var ml = data.teamMembers[String(G.myTeamId)] || [];
-          var full = ml.length >= 4; // 리더 제외 4명
+          var full = ml.length >= 4;
           $("#btnBid, #btnAllin, #bidAmount").prop("disabled", full);
           $(".controls .ig").toggleClass("is-disabled", full);
           $(".hint").text(full ? "팀 정원 5명 완료" : "경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50");
@@ -777,7 +804,7 @@
 
     var DID_PRICE_UPDATE = false;
     var DID_BIDDER_UPDATE = false;
-    
+
     if (s.assigned === true || s.assigned === false || s.requeued === true) {
       $("#playerBody tr").removeClass("leading current");
       if (!DID_BIDDER_UPDATE) {
@@ -877,7 +904,6 @@
         .done(toggleControlsFromResp);
     }
 
-    // 다음/대기 전환
     if (!s.pickId && (s.waiting === true || s.waitingPickId != null || (s.nextPickId && !s.deadlineTs))) {
       G.currentPickId = null;
       $("#playerBody tr").removeClass("leading current");
@@ -979,17 +1005,16 @@
         }
       });
   }
-  
-  function syncState(){ 
-	  if (!G.code) return;
-	  $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/state")
-	    .done(function(res){
-	      if (res && res.success===true && res.data){
-	        updateAuctionConsole(res.data);
-	      }
-	    });
-	}
 
+  function syncState(){
+    if (!G.code) return;
+    $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/state")
+      .done(function(res){
+        if (res && res.success===true && res.data){
+          updateAuctionConsole(res.data);
+        }
+      });
+  }
 
   function applyAssignmentToTeamSheet(assign){
     if (!assign || !assign.teamId) return false;
@@ -1085,68 +1110,68 @@
   }
 
   function loadStep4(){
-	  if (!G.code) return;
-	  $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/step3/snapshot")
-	    .done(function(res){
-	      if (!res || res.success !== true) return;
-	      var d = res.data || {};
-	      renderTeamSheetTo("finalTeamSheetBody", d.teams || [], d.teamMembers || {});
-	    });
-	}
+    if (!G.code) return;
+    $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/step3/snapshot")
+      .done(function(res){
+        if (!res || res.success !== true) return;
+        var d = res.data || {};
+        renderTeamSheetTo("finalTeamSheetBody", d.teams || [], d.teamMembers || {});
+      });
+  }
 
   $(document).on('click', '#btnBackToLobby', function(){
-	  function clearAndReload(){
-		  try{
-		        sessionStorage.removeItem("auc.last");
-		        sessionStorage.removeItem("auc.reloading");
-		        sessionStorage.removeItem("auc.role");
-		      }catch(e){}
-		      location.reload();
-		    }
-		    if (G.code) {
-		      $.ajax({
-		        url: URLS.auctionBase + encodeURIComponent(G.code) + "/lobby/exit",
-		        type: "POST",
-		        contentType: "application/json; charset=UTF-8",
-		  	data: "{}"
-		  	}).always(clearAndReload);
-		  } else {
-		  	clearAndReload();
-		  }
+    function clearAndReload(){
+      try{
+        sessionStorage.removeItem("auc.last");
+        sessionStorage.removeItem("auc.reloading");
+        sessionStorage.removeItem("auc.role");
+      }catch(e){}
+      location.reload();
+    }
+    if (G.code) {
+      $.ajax({
+        url: URLS.auctionBase + encodeURIComponent(G.code) + "/lobby/exit",
+        type: "POST",
+        contentType: "application/json; charset=UTF-8",
+        data: "{}"
+      }).always(clearAndReload);
+    } else {
+      clearAndReload();
+    }
   });
 
   function renderTeamSheetTo(tbodyId, teams, membersByTeam){
-	  for (var i=1;i<=8;i++){
-	    var t = teams[i-1] || null;
-	    var $rows = $('#'+tbodyId).find('tr[data-team="'+i+'"]');
+    for (var i=1;i<=8;i++){
+      var t = teams[i-1] || null;
+      var $rows = $('#'+tbodyId).find('tr[data-team="'+i+'"]');
 
-	    var budget = t ? (t.BUDGET||0) : 0;
-	    var left   = t ? (t.BUDGET_LEFT||0) : 0;
-	    var used   = t ? (t.USED||Math.max(0, budget - left)) : 0;
+      var budget = t ? (t.BUDGET||0) : 0;
+      var left   = t ? (t.BUDGET_LEFT||0) : 0;
+      var used   = t ? (t.USED||Math.max(0, budget - left)) : 0;
 
-	    $rows.eq(0).find('td.init').text(budget);
-	    $rows.eq(0).find('td.used').text(used);
-	    $rows.eq(0).find('td.left').text(left);
-	    $rows.eq(0).find('td.leader.nick').text(t ? (t.LEADER_NICK||'-') : '-');
+      $rows.eq(0).find('td.init').text(budget);
+      $rows.eq(0).find('td.used').text(used);
+      $rows.eq(0).find('td.left').text(left);
+      $rows.eq(0).find('td.leader.nick').text(t ? (t.LEADER_NICK||'-') : '-');
 
-	    $rows.eq(1).find('td.leader.point').text(t ? (t.LEADER_PRICE||t.LEADER_POINT||'-') : '-');
-	    $rows.eq(2).find('td.leader.tier').text(t ? (t.LEADER_TIER||'-') : '-');
-	    $rows.eq(3).find('td.leader.pos').text(t ? (t.LEADER_MROLE||t.LEADER_POS||'-') : '-');
+      $rows.eq(1).find('td.leader.point').text(t ? (t.LEADER_PRICE||t.LEADER_POINT||'-') : '-');
+      $rows.eq(2).find('td.leader.tier').text(t ? (t.LEADER_TIER||'-') : '-');
+      $rows.eq(3).find('td.leader.pos').text(t ? (t.LEADER_MROLE||t.LEADER_POS||'-') : '-');
 
-	    var tid = t && (t.TEAM_ID != null) ? String(t.TEAM_ID) : null;
-	    var ml  = (tid && membersByTeam && membersByTeam[tid]) ? membersByTeam[tid] : [];
-	    for (var s=1; s<=4; s++){
-	      var m = ml[s-1] || null;
-	      $rows.eq(0).find('td.m'+s+'.nick').text(m && m.NICK ? m.NICK : '-');
-	      $rows.eq(1).find('td.m'+s+'.point').text(m && (m.PRICE!=null) ? m.PRICE : '-');
-	      $rows.eq(2).find('td.m'+s+'.tier').text(m && m.TIER ? m.TIER : '-');
-	      var pos = m ? (m.MROLE || m.SROLE || m.POS) : null;
-	      $rows.eq(3).find('td.m'+s+'.pos').text(pos ? pos : '-');
-	    }
+      var tid = t && (t.TEAM_ID != null) ? String(t.TEAM_ID) : null;
+      var ml  = (tid && membersByTeam && membersByTeam[tid]) ? membersByTeam[tid] : [];
+      for (var s=1; s<=4; s++){
+        var m = ml[s-1] || null;
+        $rows.eq(0).find('td.m'+s+'.nick').text(m && m.NICK ? m.NICK : '-');
+        $rows.eq(1).find('td.m'+s+'.point').text(m && (m.PRICE!=null) ? m.PRICE : '-');
+        $rows.eq(2).find('td.m'+s+'.tier').text(m && m.TIER ? m.TIER : '-');
+        var pos = m ? (m.MROLE || m.SROLE || m.POS) : null;
+        $rows.eq(3).find('td.m'+s+'.pos').text(pos ? pos : '-');
+      }
 
-	    $rows.eq(0).find('td.sec').text('닉네임');
-	  }
-	}
-	  
+      $rows.eq(0).find('td.sec').text('닉네임');
+    }
+  }
+
 })(window.jQuery || window.$);
 </script>
