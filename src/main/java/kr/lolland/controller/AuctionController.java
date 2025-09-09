@@ -32,7 +32,7 @@ public class AuctionController {
     }
 
     private static final java.util.Set<String> ADMIN_WHITELIST =
-            new java.util.HashSet<String>(java.util.Arrays.asList("admin", "tjdgns"));
+            new java.util.HashSet<String>(java.util.Arrays.asList("admin", "lolland"));
 
     private static boolean isAdminNick(String nick) {
         return nick != null && ADMIN_WHITELIST.contains(nick.trim().toLowerCase(java.util.Locale.ROOT));
@@ -170,7 +170,10 @@ public class AuctionController {
         Long aucSeq = ((Number) sAucSeq).longValue();
         String code = String.valueOf(sCode);
         String nick = String.valueOf(sNick);
-        String role = String.valueOf(session.getAttribute("ROLE"));
+
+        // ★ 변경 포인트: ROLE을 안전하게 읽고, null이면 넣지 않음
+        Object roleObj = session.getAttribute("ROLE");
+        String role = (roleObj != null) ? roleObj.toString() : null;
 
         if ("LEADER".equals(role)) {
             auctionService.markLeaderOnline(aucSeq, nick, "Y");
@@ -180,7 +183,9 @@ public class AuctionController {
         data.put("aucSeq", aucSeq);
         data.put("code", code);
         data.put("nick", nick);
-        data.put("role", role);
+        if (role != null && !role.isEmpty()) {
+            data.put("role", role);  // "null" 문자열 방지
+        }
 
         Map<String, Object> auc = auctionService.getAucByRandomCode(code);
         if (auc != null) data.put("status", auc.get("A_STATUS"));
@@ -189,6 +194,7 @@ public class AuctionController {
 
         return resp(true, null, data);
     }
+
 
     @PostMapping("/{code}/lobby/start")
     public Map<String, Object> startAuction(@PathVariable("code") String code, HttpSession session) {
@@ -230,18 +236,23 @@ public class AuctionController {
 
     @GetMapping("/{code}/step3/snapshot")
     public Map<String,Object> step3Snapshot(@PathVariable("code") String code, HttpSession s){
-        Map<String, Object> auc = auctionService.getAucByRandomCode(code);
+      try {
+        Map<String,Object> auc = auctionService.getAucByRandomCode(code);
         if (auc == null) return resp(false, "존재하지 않는 경매 코드");
         String st = String.valueOf(auc.get("A_STATUS"));
         if (!"ING".equals(st) && !"END".equals(st)) return resp(false, "ING/END 상태가 아님");
+
         String role = String.valueOf(s.getAttribute("ROLE"));
         if (!"ADMIN_GHOST".equals(role) && !"LEADER".equals(role)) {
-            return resp(false, "열람 권한이 없습니다.");
+          return resp(false, "열람 권한이 없습니다.");
         }
 
         Long aucSeq = ((Number)auc.get("SEQ")).longValue();
         Map<String,Object> data = auctionService.getStep3Snapshot(aucSeq);
         return resp(true, null, data);
+      } catch (Exception e){
+        return resp(false, "스냅샷 오류");
+      }
     }
 
     @PostMapping("/{code}/step3/begin")

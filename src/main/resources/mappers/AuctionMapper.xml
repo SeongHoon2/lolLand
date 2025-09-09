@@ -281,4 +281,12 @@
     AND NICK = #{nick} COLLATE utf8mb4_bin
 </select>
 
+<select id="selectAllinYnByPickAndAmount" resultType="string">
+  SELECT ALLIN_YN
+  FROM lolland.AUC_BID
+  WHERE PICK_ID = #{pickId}
+    AND AMOUNT  = #{amount}
+  LIMIT 1
+</select>
+
 </mapper>

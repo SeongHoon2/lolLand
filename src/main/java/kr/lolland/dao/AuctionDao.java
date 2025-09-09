@@ -84,4 +84,7 @@ public interface AuctionDao {
     int countTeamMembersByTeam(@Param("teamId") Long teamId);
 
     int countAnyMemberByNick(@Param("aucSeq") Long aucSeq, @Param("nick") String nick);
+    
+    String selectAllinYnByPickAndAmount(@Param("pickId") Long pickId, @Param("amount") int amount);
+
 }

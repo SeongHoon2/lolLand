@@ -209,24 +209,34 @@ public class AuctionService {
         int left    = ((Number)team.get("BUDGET_LEFT")).intValue();
         int memberCnt = auctionDao.countTeamMembersByTeam(teamId);
         boolean canBid = memberCnt < 4;
-        
+
+        boolean grace = lastWasAllIn(pickId, current);          // 올인 직후 1회 특례
+        int min = effectiveMin(current, grace);
+        int nextMin = current + min;
+
+        // UI용 +10/+20/+50 버튼 활성화(최소단위 이상만)
         List<Integer> incs = new ArrayList<>();
-        int minInc = incFor(current);
         for (int c : new int[]{10,20,50}) {
-            if (c >= minInc && current + c <= left) incs.add(c);
+            if (c >= min && current + c <= left) incs.add(c);
         }
+
         Map<String,Object> r = new HashMap<>();
         r.put("current", current);
         r.put("enabledIncs", incs);
         r.put("canAllin", canBid && left > current);
         r.put("canBid", canBid);
+        r.put("grace", grace);            // ← 프론트 힌트용
+        r.put("minStep", min);            // ← 프론트 힌트/검증 보조
+        r.put("nextMin", nextMin);        // ← 프론트 최소 안내
         return r;
     }
 
     @Transactional
     public Map<String,Object> placeBid(Long aucSeq, Long pickId, Long teamId, String nick, int amount, boolean allin){
         Map<String,Object> pick = auctionDao.selectPickById(pickId);
-        if (!"BIDDING".equals(String.valueOf(pick.get("STATUS")))) throw new IllegalStateException("입찰 불가");
+        if (!"BIDDING".equals(String.valueOf(pick.get("STATUS"))))
+            throw new IllegalStateException("입찰 불가");
+
         int current = ((Number)pick.get("HIGHEST_BID")).intValue();
         int version = ((Number)pick.get("VERSION")).intValue();
 
@@ -234,18 +244,21 @@ public class AuctionService {
         int left = ((Number)team.get("BUDGET_LEFT")).intValue();
         int memberCnt = auctionDao.countTeamMembersByTeam(teamId);
         if (memberCnt >= 4) throw new IllegalStateException("팀 정원이 가득 차 입찰할 수 없습니다.");
-        
-        if (allin) { if (left <= current) throw new IllegalArgumentException("올인 불가"); amount = left; }
-        else {
-            int target = amount;
-            int tmp = current;
-            while (tmp < target) { tmp += incFor(tmp); }
-            if (tmp != target) throw new IllegalArgumentException("증분 불일치");
+
+        boolean grace = lastWasAllIn(pickId, current); // 올인 직후 1회 특례
+        if (allin) {
+            int allInAmount = roundDown10(left);       // 글로벌 10단위 정렬
+            if (allInAmount <= current) throw new IllegalArgumentException("올인 불가");
+            amount = allInAmount;
+        } else {
+            if (amount % 10 != 0) throw new IllegalArgumentException("입찰 금액은 10 단위여야 합니다.");
+            int min = effectiveMin(current, grace);
+            if (amount < current + min) throw new IllegalArgumentException("최소 단위 미달");
             if (amount > left) throw new IllegalArgumentException("잔액 부족");
         }
         if (amount <= current) throw new IllegalArgumentException("동점/낮은 금액");
 
-        auctionDao.insertBid(aucSeq, pickId, teamId, nick, amount, allin?"Y":"N");
+        auctionDao.insertBid(aucSeq, pickId, teamId, nick, amount, allin ? "Y" : "N");
         if (auctionDao.updatePickHighest(pickId, amount, teamId, version) == 0)
             throw new IllegalStateException("경합 실패");
 
@@ -257,6 +270,7 @@ public class AuctionService {
         snap.put("deadlineTs", System.currentTimeMillis() + 10000L); // 10초
         return snap;
     }
+
 
 
     @Transactional
@@ -430,6 +444,24 @@ public class AuctionService {
     public boolean existsAnyMemberNick(Long aucSeq, String nick){
         Integer cnt = auctionDao.countAnyMemberByNick(aucSeq, nick);
         return cnt != null && cnt > 0;
+    }
+
+    private int bracketMin(int current){
+        if (current < 100) return 10;
+        if (current < 400) return 20;
+        return 50;
+    }
+    private int effectiveMin(int current, boolean lastWasAllIn){
+        return lastWasAllIn ? 10 : bracketMin(current);
+    }
+    private int roundDown10(int v){
+        return (v/10)*10;
+    }
+    /** 현재 최고가가 올인으로 형성되었는지 확인(= 다음 1회만 최소+10 그레이스) */
+    private boolean lastWasAllIn(Long pickId, int current){
+        if (current <= 0) return false;
+        String yn = auctionDao.selectAllinYnByPickAndAmount(pickId, current);
+        return "Y".equalsIgnoreCase(yn);
     }
 
 }

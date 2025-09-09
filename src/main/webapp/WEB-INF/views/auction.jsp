@@ -114,34 +114,42 @@
 			  </div>
 			</div>
 			<div class="kv-grid">
-			  <div class="kv two-line">
+			  <!-- 1행: 2개(반반) -->
+			  <div class="kv two-line span-3">
 			    <span class="k">현재 경매가</span>
 			    <span class="v" id="currentPrice">0</span>
 			  </div>
-			  <div class="kv two-line">
+			  <div class="kv two-line span-3">
 			    <span class="k">현재 입찰자</span>
 			    <span class="v" id="bidStatus">-</span>
 			  </div>
-			  <div class="kv two-line">
+			
+			  <!-- 2행: 3개(1/3씩 동일 폭) -->
+			  <div class="kv two-line span-2">
+			    <span class="k">평균 경매가</span>
+			    <span class="v" id="avgPrice">-</span>
+			  </div>
+			  <div class="kv two-line span-2">
 			    <span class="k">내 잔액</span>
 			    <span class="v">
 			      <span id="myBudget">0</span>
 			      <span id="myBudgetHold" class="muted" style="margin-left:6px;"></span>
 			    </span>
 			  </div>
-			  <div class="kv two-line">
+			  <div class="kv two-line span-2">
 			    <span class="k">남은 시간</span>
 			    <span class="v" id="countdown">--</span>
 			  </div>
 			</div>
+
 			<div class="row top controls">
 			  <div class="ig">
-			    <input type="number" id="bidAmount" min="0" step="10" class="input-number" placeholder="10 단위로 입력"/>
+			    <input type="number" id="bidAmount" min="0" step="10" class="input-number" placeholder="경매 시작 대기중"/>
 			    <button class="btn primary" id="btnBid">입찰</button>
 			    <button class="btn danger" id="btnAllin">올인</button>
 			  </div>
 			</div>
-			<div class="hint" aria-live="polite">경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50</div>
+			<div class="hint" aria-live="polite">경매 최소 단위 : ~100:+10 / 100~400:+20 / 400~:+50 (모든 입찰 10단위)</div>
         </div>
 
         <h3 style="margin-top:14px">경매 선수 리스트</h3>
@@ -265,6 +273,7 @@
   var RECONNECT_TIMER=null, RECONNECT_WAIT=300, MAX_WAIT=5000;
   var CNT_TIMER=null, LAST_PICK_ID=null;
   var PENDING_ASSIGN = null;
+  var AUC_NEXT_MIN = null, AUC_GRACE = false;
 
   var URLS = {
     ws: "<c:url value='/ws-auction'/>",
@@ -284,25 +293,50 @@
   });
 
   function setStep(step){
-    $("#auctionApp").attr("data-state", step);
-    document.body.setAttribute("data-state", step);
-    $(".step").hide();
-    if(step==="STEP1") $("#step1").show();
-    if(step==="STEP2") $("#step2").show();
-    if(step==="STEP3"){
-      $("#step3").show();
-      syncState();
-      if (G.code) loadStep3(); else setTimeout(function(){ if(G.code) loadStep3(); }, 120);
-      if (STOMP && STOMP.connected) subscribeAuction();
-      if (G.role === 'ADMIN_GHOST') prepareRound();
-    }
-    if(step==="STEP4"){
-      $("#step4").show();
-      try { if (CNT_TIMER) { clearInterval(CNT_TIMER); CNT_TIMER=null; } } catch(e){}
-      disconnectStomp();
-      if (G.code) loadStep4();
-    }
-  }
+	  $("#auctionApp").attr("data-state", step);
+	  document.body.setAttribute("data-state", step);
+	  $(".step").hide();
+
+	  if(step==="STEP1") { $("#step1").show(); }
+
+	  if(step==="STEP2") { $("#step2").show(); }
+
+	  if(step==="STEP3"){
+	    // ★ ROLE이 아직 세팅되지 않은 경우 잠시 대기 후 재시도 (새로고침 직후 튕김 방지)
+	    if (!(G.role === 'ADMIN_GHOST' || G.role === 'LEADER')) {
+	      try {
+	        // 세션스토리지에 role이 있으면 우선 적용(조기 복구)
+	        var savedRole = sessionStorage.getItem("auc.role");
+	        if (savedRole) {
+	          G.role = savedRole;
+	          if (G.role === 'ADMIN_GHOST') { try { document.body.classList.add('admin'); } catch(e){} }
+	        }
+	      } catch(e){}
+
+	      if (!(G.role === 'ADMIN_GHOST' || G.role === 'LEADER')) {
+	        setTimeout(function(){ setStep('STEP3'); }, 80);
+	        return;
+	      }
+	    }
+
+	    if (!hasJoined()) { return; } // 코드/닉이 없으면 대기 (스냅샷 호출 금지)
+
+	    $("#step3").show();
+	    syncState();
+	    if (G.code) { loadStep3(); } else { setTimeout(function(){ if (G.code) loadStep3(); }, 120); }
+	    if (STOMP && STOMP.connected) { subscribeAuction(); }
+	    if (G.role === 'ADMIN_GHOST') { prepareRound(); }
+	    return;
+	  }
+
+	  if(step==="STEP4"){
+	    $("#step4").show();
+	    try { if (CNT_TIMER) { clearInterval(CNT_TIMER); CNT_TIMER=null; } } catch(e){}
+	    disconnectStomp();
+	    if (G.code) loadStep4();
+	  }
+	}
+
 
   function renderLobby(data){
     var leaders = (data && data.leaders) || [];
@@ -346,7 +380,11 @@
           }
           return;
         }
-        if (msg.status === 'ING') { if (hasJoined()) setStep('STEP3'); }
+        if (msg.status === 'ING') {
+        	if (hasJoined() && (G.role === 'ADMIN_GHOST' || G.role === 'LEADER')) {
+        		setStep('STEP3');
+        	}
+        }
         renderLobby(msg);
       } catch(e){}
     });
@@ -522,87 +560,170 @@
   });
 
   function tryRestore(){
-    var isReload = false;
-    try { isReload = sessionStorage.getItem("auc.reloading")==="1"; } catch(e){}
-    var cached=null; try{ cached = JSON.parse(sessionStorage.getItem("auc.last")||"null"); }catch(e){}
+	  var isReload = false;
+	  try { isReload = sessionStorage.getItem("auc.reloading")==="1"; } catch(e){}
 
-    try {
-      var savedRole = sessionStorage.getItem("auc.role");
-      if (savedRole === 'ADMIN_GHOST') { document.body.classList.add('admin'); G.role = savedRole; }
-    } catch(e){}
+	  var cached=null;
+	  try { cached = JSON.parse(sessionStorage.getItem("auc.last")||"null"); } catch(e){}
 
-    if(isReload && cached && cached.code && cached.nick){
-      try{ sessionStorage.removeItem("auc.reloading"); }catch(e){}
-      $.ajax({
-        url: URLS.auctionBase + encodeURIComponent(cached.code) + "/lobby/join",
-        type: "POST",
-        contentType: "application/json; charset=UTF-8",
-        data: JSON.stringify({ code: cached.code, nick: cached.nick })
-      }).done(function(res2){
-        if(res2 && res2.success===true){ G.nick=cached.nick; afterJoin(cached.code); }
-        else setStep("STEP1");
-      }).fail(function(){ setStep("STEP1"); });
-      return;
-    }
+	  // 저장된 role이 있으면 즉시 적용(화면 표시 안정화)
+	  try {
+	    var savedRole = sessionStorage.getItem("auc.role");
+	    if (savedRole) {
+	      G.role = savedRole;
+	      if (G.role === 'ADMIN_GHOST') { try { document.body.classList.add('admin'); } catch(e){} }
+	    }
+	  } catch(e){}
 
-    $.getJSON(URLS.restore).done(function(res){
-      var data = res && res.data;
-      if (res && res.success===true && data){
-        G.aucSeq = data.aucSeq;
-        G.code   = data.code;
-        G.nick   = data.nick;
-        if (data.role) { G.role = data.role; if (G.role === 'ADMIN_GHOST') { try{ document.body.classList.add('admin'); }catch(e){} } }
-        renderLobby(data);
-        if (data.status === "ING") {
-          if (hasJoined()) {
-            setStep("STEP3");
-            loadStep3();
-          } else {
-            setStep("STEP2");
-          }
-          connectStomp();
-        }
-        else if (data.status === "END") {
-          var role = data.role || G.role;
-          if (hasJoined() && (role === 'ADMIN_GHOST' || role === 'LEADER')) {
-            setStep("STEP4");
-          } else {
-            setStep("STEP2");
-          }
-        }
-        else {
-          setStep("STEP2");
-          connectStomp();
-        }
-      } else if(cached && cached.code && cached.nick){
-        $.ajax({
-          url: URLS.auctionBase + encodeURIComponent(cached.code) + "/lobby/join",
-          type: "POST",
-          contentType: "application/json; charset=UTF-8",
-          data: JSON.stringify({ code: cached.code, nick: cached.nick })
-        }).done(function(res2){
-          if(res2 && res2.success===true){ G.nick=cached.nick; afterJoin(cached.code); }
-          else setStep("STEP1");
-        }).fail(function(){ setStep("STEP1"); });
-      } else {
-        setStep("STEP1");
-      }
-    }).fail(function(){
-      if(cached && cached.code && cached.nick){
-        $.ajax({
-          url: URLS.auctionBase + encodeURIComponent(cached.code) + "/lobby/join",
-          type: "POST",
-          contentType: "application/json; charset=UTF-8",
-          data: JSON.stringify({ code: cached.code, nick: cached.nick })
-        }).done(function(res2){
-          if(res2 && res2.success===true){ G.nick=cached.nick; afterJoin(cached.code); }
-          else setStep("STEP1");
-        }).fail(function(){ setStep("STEP1"); });
-      } else {
-        setStep("STEP1");
-      }
-    });
-  }
+	  // 1) 강제 새로고침 + 캐시 존재 → 즉시 재조인
+	  if(isReload && cached && cached.code && cached.nick){
+	    try{ sessionStorage.removeItem("auc.reloading"); }catch(e){}
+	    $.ajax({
+	      url: URLS.auctionBase + encodeURIComponent(cached.code) + "/lobby/join",
+	      type: "POST",
+	      contentType: "application/json; charset=UTF-8",
+	      data: JSON.stringify({ code: cached.code, nick: cached.nick })
+	    }).done(function(res2){
+	      if(res2 && res2.success===true){
+	        // ★ 재조인 응답에서 role 확정 + 저장
+	        var role = (res2.data && res2.data.role) ? String(res2.data.role)
+	                 : (res2.payload && res2.payload.role) ? String(res2.payload.role)
+	                 : null;
+	        if (role) {
+	          G.role = role;
+	          try { sessionStorage.setItem('auc.role', role); } catch(e){}
+	          if (role === 'ADMIN_GHOST') { try { document.body.classList.add('admin'); } catch(e){} }
+	        }
+	        G.nick = cached.nick;
+	        afterJoin(cached.code);
+	      } else {
+	        setStep("STEP1");
+	      }
+	    }).fail(function(){ setStep("STEP1"); });
+	    return;
+	  }
+
+	  // 2) 서버 세션 복구 시도
+	  $.getJSON(URLS.restore).done(function(res){
+	    var data = res && res.data;
+	    if (res && res.success===true && data){
+	      G.aucSeq = data.aucSeq;
+	      G.code   = data.code;
+	      G.nick   = data.nick;
+
+	      // restore 응답에 role이 있으면 확정 + 저장
+	      var role = (data.role === 'null' || data.role === 'undefined' || data.role == null || data.role === '') ? null : String(data.role);
+	      if (role) {
+	        G.role = role;
+	        try { sessionStorage.setItem('auc.role', role); } catch(e){}
+	        if (role === 'ADMIN_GHOST') { try { document.body.classList.add('admin'); } catch(e){} }
+	      }
+
+	      renderLobby(data);
+
+	      if (data.status === "ING") {
+	        var roleOk = (G.role === 'ADMIN_GHOST' || G.role === 'LEADER');
+	        if (!roleOk) {
+	          // 2-1) ROLE 없으면 캐시로 재조인 시도
+	          var cached2=null; try{ cached2 = JSON.parse(sessionStorage.getItem("auc.last")||"null"); }catch(e){}
+	          if (cached2 && cached2.code && cached2.nick) {
+	            $.ajax({
+	              url: URLS.auctionBase + encodeURIComponent(cached2.code) + "/lobby/join",
+	              type: "POST",
+	              contentType: "application/json; charset=UTF-8",
+	              data: JSON.stringify({ code: cached2.code, nick: cached2.nick })
+	            }).done(function(res2){
+	              if(res2 && res2.success===true){
+	                // ★ 재조인 응답에서 role 확정 + 저장
+	                var role2 = (res2.data && res2.data.role) ? String(res2.data.role)
+	                          : (res2.payload && res2.payload.role) ? String(res2.payload.role)
+	                          : null;
+	                if (role2) {
+	                  G.role = role2;
+	                  try { sessionStorage.setItem('auc.role', role2); } catch(e){}
+	                  if (role2 === 'ADMIN_GHOST') { try { document.body.classList.add('admin'); } catch(e){} }
+	                }
+	                G.nick = cached2.nick;
+	                afterJoin(cached2.code);
+	              } else {
+	                setStep("STEP2"); connectStomp();
+	              }
+	            }).fail(function(){ setStep("STEP2"); connectStomp(); });
+	            return; // 재조인 완료까지 대기
+	          }
+	        }
+	        // ROLE 정상 또는 재조인 불필요
+	        setStep("STEP3");
+	        loadStep3();
+	        connectStomp();
+	      }
+	      else if (data.status === "END") {
+	        var r2 = G.role || role;
+	        if (r2 === 'ADMIN_GHOST' || r2 === 'LEADER') { setStep("STEP4"); }
+	        else { setStep("STEP2"); }
+	      }
+	      else {
+	        setStep("STEP2");
+	        connectStomp();
+	      }
+	    }
+	    // restore 성공X → 캐시 재조인 시도
+	    else if(cached && cached.code && cached.nick){
+	      $.ajax({
+	        url: URLS.auctionBase + encodeURIComponent(cached.code) + "/lobby/join",
+	        type: "POST",
+	        contentType: "application/json; charset=UTF-8",
+	        data: JSON.stringify({ code: cached.code, nick: cached.nick })
+	      }).done(function(res2){
+	        if(res2 && res2.success===true){
+	          // ★ 재조인 응답에서 role 확정 + 저장
+	          var role = (res2.data && res2.data.role) ? String(res2.data.role)
+	                   : (res2.payload && res2.payload.role) ? String(res2.payload.role)
+	                   : null;
+	          if (role) {
+	            G.role = role;
+	            try { sessionStorage.setItem('auc.role', role); } catch(e){}
+	            if (role === 'ADMIN_GHOST') { try { document.body.classList.add('admin'); } catch(e){} }
+	          }
+	          G.nick = cached.nick;
+	          afterJoin(cached.code);
+	        } else {
+	          setStep("STEP1");
+	        }
+	      }).fail(function(){ setStep("STEP1"); });
+	    } else {
+	      setStep("STEP1");
+	    }
+	  }).fail(function(){
+	    // restore 호출 자체 실패 → 캐시 재조인 시도
+	    if(cached && cached.code && cached.nick){
+	      $.ajax({
+	        url: URLS.auctionBase + encodeURIComponent(cached.code) + "/lobby/join",
+	        type: "POST",
+	        contentType: "application/json; charset=UTF-8",
+	        data: JSON.stringify({ code: cached.code, nick: cached.nick })
+	      }).done(function(res2){
+	        if(res2 && res2.success===true){
+	          // ★ 재조인 응답에서 role 확정 + 저장
+	          var role = (res2.data && res2.data.role) ? String(res2.data.role)
+	                   : (res2.payload && res2.payload.role) ? String(res2.payload.role)
+	                   : null;
+	          if (role) {
+	            G.role = role;
+	            try { sessionStorage.setItem('auc.role', role); } catch(e){}
+	            if (role === 'ADMIN_GHOST') { try { document.body.classList.add('admin'); } catch(e){} }
+	          }
+	          G.nick = cached.nick;
+	          afterJoin(cached.code);
+	        } else {
+	          setStep("STEP1");
+	        }
+	      }).fail(function(){ setStep("STEP1"); });
+	    } else {
+	      setStep("STEP1");
+	    }
+	  });
+	}
 
   function loadStep3(){
     $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/step3/snapshot")
@@ -785,184 +906,233 @@
   }
 
   function toggleControlsFromResp(r){
-    if (!r || r.success!==true) return;
-    var c = r.data || {};
-    var canBid = (c.canBid !== false);
-    $("#btnBid").prop("disabled", !canBid);
-    $("#bidAmount").prop("disabled", !canBid);
-    $("#btnAllin").prop("disabled", !canBid || !c.canAllin);
-    $(".controls .ig").toggleClass("is-disabled", !canBid);
-    if (!canBid) {
-      $(".hint").text("팀 정원 5명 완료");
-    } else {
-      $(".hint").text("경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50");
-    }
-  }
+	  if (!r || r.success!==true) return;
+	  var c = r.data || {};
+	  var canBid = (c.canBid !== false);
+	  $("#btnBid").prop("disabled", !canBid);
+	  $("#bidAmount").prop("disabled", !canBid);
+	  $("#btnAllin").prop("disabled", !canBid || !c.canAllin);
+	  $(".controls .ig").toggleClass("is-disabled", !canBid);
+
+	  if (!canBid) {
+	    $(".hint").text("팀 정원 5명 완료");
+	    AUC_NEXT_MIN = null; AUC_GRACE = false;
+	    return;
+	  }
+	  if (typeof c.nextMin === 'number') {
+	    AUC_NEXT_MIN = c.nextMin;
+	    $("#bidAmount")
+	      .attr("min", c.nextMin)
+	      .attr("step", 10)
+	      .attr("placeholder", c.nextMin + " 이상 (10 단위)");
+	  } else {
+	    AUC_NEXT_MIN = null;
+	  }
+	  AUC_GRACE = !!c.grace;
+
+	  if (AUC_GRACE) {
+	    $(".hint").text("올인 직후 1회: 최소 +10 (모든 입찰 10단위)");
+	  } else {
+	    $(".hint").text("경매 최소 단위 : ~100:+10 / 100~400:+20 / 400~:+50 (모든 입찰 10단위)");
+	  }
+	}
+
 
   function updateAuctionConsole(s){
-    if (!s) return;
+	  if (!s) return;
 
-    var DID_PRICE_UPDATE = false;
-    var DID_BIDDER_UPDATE = false;
+	  var DID_PRICE_UPDATE = false;
+	  var DID_BIDDER_UPDATE = false;
 
-    if (s.assigned === true || s.assigned === false || s.requeued === true) {
-      $("#playerBody tr").removeClass("leading current");
-      if (!DID_BIDDER_UPDATE) {
-        $("#bidStatus").text("-");
-      }
-    }
+	  // 픽 종료(성공/유찰/재큐) 공통 처리
+	  if (s.assigned === true || s.assigned === false || s.requeued === true) {
+	    $("#playerBody tr").removeClass("leading current");
+	    if (!DID_BIDDER_UPDATE) { $("#bidStatus").text("-"); }
 
-    if (s.pickId && s.pickId !== LAST_PICK_ID) {
-      LAST_PICK_ID = s.pickId;
-      G.currentPickId = s.pickId;
-      clearActiveFocus();
-      $("#bidAmount").val(0);
-      $("#currentPrice").text(0);
-      $("#playerBody tr").removeClass("leading current");
-      $("#myBudgetHold").text("");
-      $("#btnBegin").removeData('pickid').prop('disabled', true);
-      $("#bidStatus").text("-");
-    }
+	    // ★ 유찰(assigned=false) 또는 requeued 때는 리스트 '낙찰' 칸을 '-'로 되돌린다
+	    if ((s.assigned === false || s.requeued === true) && s.targetNick) {
+	      $("#playerBody tr").each(function(){
+	        var $tds = $(this).find("td");
+	        if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
+	          $tds.eq(5).text('-');
+	          $(this).removeClass('leading');
+	          return false;
+	        }
+	      });
+	    }
+	  }
 
-    if (typeof s.targetNick === 'string') { $("#currentTarget").text(s.targetNick); }
+	  // 새 픽 진입 시 콘솔 상태 초기화 (리스트 가격칸은 건드리지 않음)
+	  if (s.pickId && s.pickId !== LAST_PICK_ID) {
+	    LAST_PICK_ID = s.pickId;
+	    G.currentPickId = s.pickId;
+	    clearBidInput();
+	    $("#currentPrice").text(0);
+	    $("#playerBody tr").removeClass("leading current");
+	    $("#myBudgetHold").text("");
+	    $("#btnBegin").removeData('pickid').prop('disabled', true);
+	    $("#bidStatus").text("-");
+	  }
 
-    if (typeof s.highestBid === 'number') {
-      var $price = $("#currentPrice");
-      var prev = auToInt($price.text());
-      var next = auToInt(s.highestBid);
-      if (next !== prev) {
-        $price.text(next);
-        var raf = window.requestAnimationFrame || function(fn){ return setTimeout(fn, 0); };
-        raf(function(){ fxBump($price); });
-        DID_PRICE_UPDATE = true;
-      }
-    }
+	  if (typeof s.targetNick === 'string') { $("#currentTarget").text(s.targetNick); }
 
-    if (typeof s.deadlineTs === 'number') { setCountdown(s.deadlineTs); }
-    if (typeof s.targetNick === 'string' && !s.assigned) {
-      highlightCurrentByNick(s.targetNick);
-    }
+	  if (typeof s.highestBid === 'number') {
+	    var $price = $("#currentPrice");
+	    var prev = auToInt($price.text());
+	    var next = auToInt(s.highestBid);
+	    if (next !== prev) {
+	      $price.text(next);
+	      var raf = window.requestAnimationFrame || function(fn){ return setTimeout(fn, 0); };
+	      raf(function(){ fxBump($price); });
+	      DID_PRICE_UPDATE = true;
+	    }
+	  }
 
-    if (s.targetNick && typeof s.highestBid === 'number' && !s.assigned) {
-      $("#playerBody tr").each(function(){
-        var $tr = $(this);
-        var $tds = $tr.find("td");
-        if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
-          if (!$tr.hasClass('sold')) {
-            $tds.eq(5).text(s.highestBid);
-            $tr.addClass("leading");
-          }
-        } else {
-          $tr.removeClass("leading");
-        }
-      });
-    }
+	  if (typeof s.deadlineTs === 'number') { setCountdown(s.deadlineTs); }
+	  if (typeof s.targetNick === 'string' && !s.assigned) { highlightCurrentByNick(s.targetNick); }
 
-    if (G.myTeamId && s.highestTeam && typeof s.highestBid === 'number') {
-      if (String(G.myTeamId) === String(s.highestTeam)) {
-        var currentLeft = parseInt($("#myBudget").text()||"0",10);
-        $("#myBudgetHold").text("잔여 : " + Math.max(0, currentLeft - s.highestBid));
-      } else {
-        $("#myBudgetHold").text("");
-      }
-    }
+	  // ★ 진행 중 테이블 업데이트: 첫 입찰 전(highestBid==0)이면 '-' 유지 (0을 쓰지 않음)
+	  if (s.targetNick && typeof s.highestBid === 'number' && !s.assigned) {
+	    $("#playerBody tr").each(function(){
+	      var $tr = $(this);
+	      var $tds = $tr.find("td");
+	      var isTarget = ($tds.eq(1).text().trim() === String(s.targetNick).trim());
+	      if (isTarget) {
+	        if (!$tr.hasClass('sold')) {
+	          if (s.highestBid > 0) {
+	            $tds.eq(5).text(s.highestBid);
+	            $tr.addClass("leading");
+	          } else {
+	            // 첫 입찰 전: 가격 칸을 '-'로 유지하고 leading 제거
+	            $tds.eq(5).text('-');
+	            $tr.removeClass("leading");
+	          }
+	        }
+	      } else {
+	        $tr.removeClass("leading");
+	      }
+	    });
+	  }
 
-    if (!s.assigned && s.highestTeam) {
-      var leader = G.leaderNickByTeamId && G.leaderNickByTeamId[String(s.highestTeam)];
-      var $bs = $("#bidStatus");
-      var prevTxt = $.trim($bs.text());
-      var nextTxt = leader || "-";
-      if (nextTxt !== prevTxt) {
-        $bs.text(nextTxt);
-        DID_BIDDER_UPDATE = true;
-        var raf2 = window.requestAnimationFrame || function(fn){ return setTimeout(fn, 0); };
-        raf2(function(){ fxBump($bs); });
-      }
-    }
+	  // 내 팀의 홀드 금액 표시
+	  if (G.myTeamId && s.highestTeam && typeof s.highestBid === 'number') {
+	    if (String(G.myTeamId) === String(s.highestTeam)) {
+	      var currentLeft = parseInt($("#myBudget").text()||"0",10);
+	      $("#myBudgetHold").text("잔여 : " + Math.max(0, currentLeft - s.highestBid));
+	    } else {
+	      $("#myBudgetHold").text("");
+	    }
+	  }
 
-    if (s.assigned === true) {
-      $("#myBudgetHold").text("");
-      if (s.targetNick) {
-        $("#playerBody tr").each(function(){
-          var $tds = $(this).find("td");
-          if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
-            $tds.eq(5).text(s.price != null ? s.price : "-");
-            $(this).addClass("sold won");
-            return false;
-          }
-        });
-      }
-      var applied = applyAssignmentToTeamSheet(s);
-      if (!applied) {
-        PENDING_ASSIGN = s;
-        setTimeout(loadTeamSheetOnly, 350);
-      }
-    }
+	  // 현재 최고 입찰 팀(닉) 표시
+	  if (!s.assigned && s.highestTeam) {
+	    var leader = G.leaderNickByTeamId && G.leaderNickByTeamId[String(s.highestTeam)];
+	    var $bs = $("#bidStatus");
+	    var prevTxt = $.trim($bs.text());
+	    var nextTxt = leader || "-";
+	    if (nextTxt !== prevTxt) {
+	      $bs.text(nextTxt);
+	      DID_BIDDER_UPDATE = true;
+	      var raf2 = window.requestAnimationFrame || function(fn){ return setTimeout(fn, 0); };
+	      raf2(function(){ fxBump($bs); });
+	    }
+	  }
 
-    if (s.pickId && !s.assigned) {
-      $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.pickId + "/controls")
-        .done(toggleControlsFromResp);
-    }
+	  // 낙찰 처리(가격 확정)
+	  if (s.assigned === true) {
+	    $("#myBudgetHold").text("");
+	    if (s.targetNick) {
+	      $("#playerBody tr").each(function(){
+	        var $tds = $(this).find("td");
+	        if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
+	          $tds.eq(5).text(s.price != null ? s.price : "-");
+	          $(this).addClass("sold won");
+	          return false;
+	        }
+	      });
+	    }
+	    var applied = applyAssignmentToTeamSheet(s);
+	    if (!applied) { PENDING_ASSIGN = s; setTimeout(loadTeamSheetOnly, 350); }
+	  }
 
-    if (!s.pickId && (s.waiting === true || s.waitingPickId != null || (s.nextPickId && !s.deadlineTs))) {
-      G.currentPickId = null;
-      $("#playerBody tr").removeClass("leading current");
-      if (!DID_PRICE_UPDATE) { $("#currentPrice").text(0); }
-      $("#bidAmount").val(0);
-      $("#myBudgetHold").text("");
-      $("#countdown").text("--").css({color:'', 'font-weight':''});
-      $("#bidStatus").text("-");
-      var nextNick = s.nextTarget || s.targetNick || "-";
-      $("#currentTarget").text(String(nextNick||"-"));
-      highlightCurrentByNick(nextNick);
-      var pid = s.waitingPickId || s.nextPickId || null;
-      if (!nextNick || nextNick === '-' || !pid) {
-        $("#btnBegin").data('pickid', null).prop('disabled', true);
-      } else {
-        $("#btnBegin").data('pickid', pid).prop('disabled', !pid);
-      }
-      return;
-    }
+	  // 컨트롤 토글
+	  if (s.pickId && !s.assigned && (G.role === 'ADMIN_GHOST' || G.role === 'LEADER')) {
+	    $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.pickId + "/controls")
+	      .done(toggleControlsFromResp);
+	  } else {
+	    $("#btnBid, #btnAllin, #bidAmount").prop("disabled", true);
+	    $(".controls .ig").addClass("is-disabled");
+	    $(".hint").text("관리자 모드");
+	  }
 
-    if (s.finished === true || s.auctionEnd === true) { setStep("STEP4"); return; }
-  }
+	  // 대기(다음 픽 준비) 상태
+	  if (!s.pickId && (s.waiting === true || s.waitingPickId != null || (s.nextPickId && !s.deadlineTs))) {
+	    G.currentPickId = null;
+	    $("#playerBody tr").removeClass("leading current");
+	    if (!DID_PRICE_UPDATE) { $("#currentPrice").text(0); }
+	    $("#bidAmount").val("");
+	    $("#myBudgetHold").text("");
+	    $("#countdown").text("--").css({color:'', 'font-weight':''});
+	    $("#bidStatus").text("-");
+	    var nextNick = s.nextTarget || s.targetNick || "-";
+	    $("#currentTarget").text(String(nextNick||"-"));
+	    highlightCurrentByNick(nextNick);
+	    var pid = s.waitingPickId || s.nextPickId || null;
+	    if (!nextNick || nextNick === '-' || !pid) {
+	      $("#btnBegin").data('pickid', null).prop('disabled', true);
+	    } else {
+	      $("#btnBegin").data('pickid', pid).prop('disabled', !pid);
+	    }
+	    return;
+	  }
+
+	  if (s.finished === true || s.auctionEnd === true) { setStep("STEP4"); return; }
+	}
+	  
 
   $(document).on("click", "#btnBid", function(){
-    if (!G.code) { alert("세션 없음"); return; }
-    if (!G.currentPickId) { alert("입찰 진행중인 건이 없습니다."); return; }
+	  if (!G.code) { alertAndClear("세션 없음"); return; }
+	  if (!G.currentPickId) { alertAndClear("입찰 진행중인 건이 없습니다."); return; }
 
-    var current = parseInt($("#currentPrice").text()||"0",10);
-    var amount  = parseInt($("#bidAmount").val()||"0",10);
-    if (isNaN(amount) || amount < 10 || (amount % 10) !== 0) {
-      alert("입찰 금액은 10 단위여야 합니다. (예: 10, 20, 30 …)");
-      $("#bidAmount").focus();
-      return;
-    }
-    if (amount <= current) {
-      alert("현재 경매가보다 큰 금액을 입력하세요.");
-      $("#bidAmount").focus();
-      return;
-    }
+	  var current = parseInt($("#currentPrice").text()||"0",10);
+	  var raw = $("#bidAmount").val();
 
-    var $btn = $(this).prop("disabled", true).text("전송중…");
-    $.ajax({
-      url: URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/bid",
-      type: "POST",
-      contentType: "application/json; charset=UTF-8",
-      data: JSON.stringify({ amount: amount })
-    }).done(function(res){
-      if (!res || res.success!==true){
-        var msg = (res && res.error && res.error.msg) ? res.error.msg : "입찰 실패";
-        alert(msg);
-      } else {
-        $(".hint").text("입찰 요청 완료! 서버 반영 중…");
-      }
-    }).fail(function(xhr){
-      alert("네트워크 오류로 입찰 실패" + (xhr && xhr.status ? " ("+xhr.status+")" : ""));
-    }).always(function(){
-      $btn.prop("disabled", false).text("입찰");
-    });
-  });
+	  if (raw === "" || raw == null) { alertAndClear("금액을 입력하세요."); return; }
+
+	  var amount = parseInt(raw,10);
+	  if (isNaN(amount)) { alertAndClear("숫자만 입력하세요."); return; }
+	  if (amount < 10 || (amount % 10) !== 0) {
+	    alertAndClear("입찰 금액은 10 단위여야 합니다. (예: 10, 20, 30 …)");
+	    return;
+	  }
+	  if (amount <= current) { alertAndClear("현재 경매가보다 큰 금액을 입력하세요."); return; }
+	  if (AUC_NEXT_MIN != null && amount < AUC_NEXT_MIN) {
+	    alertAndClear("최소 입찰 금액은 " + AUC_NEXT_MIN + " 입니다.");
+	    return;
+	  }
+
+	  var $btn = $(this).prop("disabled", true).text("전송중…");
+	  $.ajax({
+	    url: URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/bid",
+	    type: "POST",
+	    contentType: "application/json; charset=UTF-8",
+	    data: JSON.stringify({ amount: amount })
+	  }).done(function(res){
+	    if (!res || res.success!==true){
+	      var msg = (res && res.error && res.error.msg) ? res.error.msg : "입찰 실패";
+	      alertAndClear(msg); // 서버 실패도 비움
+	    } else {
+	      $(".hint").text("입찰 요청 완료! 서버 반영 중…");
+	    }
+	  }).fail(function(xhr){
+	    alertAndClear("네트워크 오류로 입찰 실패" + (xhr && xhr.status ? " ("+xhr.status+")" : ""));
+	  }).always(function(){
+	    $btn.prop("disabled", false).text("입찰");
+	    // 성공/실패 무관하게 비우기(성공 시에도 빈칸 유지해서 힌트 보이게)
+	    clearBidInput();
+	  });
+	});
+	  
 
   $(document).on("click", "#btnAllin", function(){
     if (!G.code || !G.currentPickId) { alert("입찰 진행중인 건이 없습니다."); return; }
@@ -984,12 +1154,17 @@
   });
 
   $(document).on("change", "#bidAmount", function(){
-    var v = parseInt($(this).val()||"0",10);
-    if (isNaN(v) || v < 10 || (v % 10)!==0) {
-      this.setCustomValidity("입찰 금액은 10 단위여야 합니다. (1~9 불가)");
-    } else {
-      this.setCustomValidity("");
-    }
+	  var raw = $(this).val();
+	  if (raw === "" || raw == null) {
+	    this.setCustomValidity("");
+	    return;
+	  }
+	  var v = parseInt(raw, 10);
+	  if (isNaN(v) || v < 10 || (v % 10)!==0) {
+	    this.setCustomValidity("입찰 금액은 10 단위여야 합니다. (1~9 불가)");
+	  } else {
+	    this.setCustomValidity("");
+	  }
   });
 
   function loadTeamSheetOnly() {
@@ -1173,5 +1348,32 @@
     }
   }
 
+  function clearBidInput(){
+	  var $in = $("#bidAmount");
+	  $in.val("");                  // 값 비움 → placeholder 노출
+	  $in[0]?.setCustomValidity(""); // 커스텀 에러 초기화
+	}
+
+	$(document).on("keydown", "#bidAmount", function(e){
+	  if(e.key === "Enter"){ $("#btnBid").click(); }
+	});
+
+	$("#bidAmount").on("wheel", e => e.preventDefault());
+
+	// 공통: 입력칸 비우기
+	function clearBidInput(){
+	  var $in = $("#bidAmount");
+	  $in.val("");
+	  $in[0]?.setCustomValidity("");
+	}
+
+	// 공통: 알림 + 입력칸 비우기 + 포커스
+	function alertAndClear(msg){
+	  alert(msg);
+	  clearBidInput();
+	  $("#bidAmount").focus();
+	}
+
+	
 })(window.jQuery || window.$);
 </script>
