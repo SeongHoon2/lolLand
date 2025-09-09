@@ -116,16 +116,11 @@ body[data-state="STEP3"] #auctionApp.container{
 #playerTable tr.leading{opacity:.8}
 #playerTable tr.sold td{background:rgba(150,155,165,.18)}
 #playerTable tr.won td{text-decoration:overline}
-#auctionApp #step3 .tbl-scroll.tall.players.compact-players{max-height:418px}
+#auctionApp #step3 .tbl-scroll.tall.players.compact-players{max-height:366px}
 #auctionApp #step3 input[type=number]::-webkit-inner-spin-button,
 #auctionApp #step3 input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 #auctionApp #step3 input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .muted{opacity:.7}
-#auctionApp #step3 .kv-grid{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
 #auctionApp #step3 .kv.two-line{
   display: flex !important;
   flex-direction: column !important;
@@ -152,11 +147,6 @@ body[data-state="STEP3"] #auctionApp.container{
 
 #auctionApp #step3 .kv.two-line .v#countdown{
   font-size: 30px;
-}
-#auctionApp #step3 .kv-grid{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
 }
 #auctionApp #step3 .kv.two-line .v#bidStatus{
   display:block;
@@ -335,3 +325,212 @@ body[data-state="STEP3"] #auctionApp.container{
 
 #auctionApp #step4 #finalTeamSheet td.tier,
 #auctionApp #step4 #finalTeamSheet td.pos { color:#fff !important; }
+
+/* kv-grid: 6등분 + 꽉 채우기 */
+#auctionApp #step3 .console .kv-grid{
+  display:grid;
+  grid-template-columns: repeat(6, minmax(0,1fr)) !important;
+  gap:12px;
+  grid-auto-flow: row dense; /* 빈칸 있으면 촘촘히 채움 */
+}
+
+/* span 유틸 */
+#auctionApp #step3 .kv.two-line.span-3 { grid-column: span 3 / auto; }
+#auctionApp #step3 .kv.two-line.span-2 { grid-column: span 2 / auto; }
+
+/* 2행 카드 폰트(안 잘리게 살짝 축소) */
+#auctionApp #step3 .kv.two-line .k { font-size:13px; }
+#auctionApp #step3 .kv.two-line .v { font-size:22px; }
+#auctionApp #step3 .kv.two-line .v#countdown{ font-size:28px; }
+
+/* 입찰자 폭 고정 제거(말줄임만 유지) */
+#auctionApp #step3 .kv.two-line .v#bidStatus{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  margin:0 auto;
+  display:block;
+}
+
+/* ── 입찰 컨트롤: 2행 그리드 + 우측 단일 입찰 버튼(span 2 rows) ───────── */
+#auctionApp #step3 .controls-grid{
+  display:grid;
+  grid-template-columns: 1fr auto; /* 좌: 컨트롤 묶음 / 우: 입찰 버튼 */
+  grid-template-rows: auto auto;   /* 1행, 2행 */
+  gap: 10px 8px;
+  width:100%;
+  margin-top:12px;
+}
+
+#auctionApp #step3 .controls-grid .left{ min-width:0; }
+#auctionApp #step3 .controls-grid .row1,
+#auctionApp #step3 .controls-grid .row2{ align-self:stretch; }
+
+#auctionApp #step3 .controls-grid .bid-span{
+  grid-row: 1 / span 2;         /* ★ 두 행 세로로 모두 차지 */
+  display:flex; align-items:stretch; justify-content:center;
+}
+
+#auctionApp #step3 .controls-grid .btnBid{
+  height:100%;                  /* ★ 그리드 영역의 전체 높이 채우기(두 행 합) */
+  aspect-ratio: 1 / 1;          /* ★ 정사각형에 가깝게 */
+  min-width: 88px;              /* 너무 작지 않게 가드 */
+  max-width: 160px;             /* 너무 커지는 것 방지(원하면 조절) */
+  font-size:18px; font-weight:800;
+  border-radius:12px;
+  padding:0 14px;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* 1행: 입력칸 */
+#auctionApp #step3 .controls-grid .bid-input{
+   width:100%;
+   height: var(--au-row-h);
+   line-height: var(--au-row-h);
+   font-size:14px;
+   text-align:center;
+   padding:0 10px;
+   border-radius:10px;
+}
+
+/* 2행: 스텝 버튼 묶음 */
+#auctionApp #step3 .step-buttons{
+  display:flex; gap:8px; flex-wrap:wrap;
+}
+#auctionApp #step3 .step-buttons .btn{
+   height: var(--au-row-h);
+   line-height: var(--au-row-h);
+   padding: 0 12px;
+   border-radius:10px;
+   font-weight:700;
+   font-size:14px;
+ }
+#auctionApp #step3 .step-buttons .btn.step{
+	width : 118px;
+  background:#0e1218; border-color:var(--border);
+}
+#auctionApp #step3 .step-buttons .btn.step:hover{ filter:brightness(1.05); }
+#auctionApp #step3 .step-buttons .btn.warn{
+  background: var(--warn); border-color:#e0a03a; color:#111; font-weight:800;
+}
+
+/* 비활성화 상태 토글(기존 .controls .ig 대신) */
+#auctionApp #step3 .controls-grid.is-disabled{ opacity:.6; cursor:not-allowed; }
+
+/* ===== 입찰 컨트롤 레이아웃 & 사이즈 고정 ===== */
+:root{
+  --au-gap: 8px;          /* 행 간격 */
+  --au-row-h: 40px;       /* 1행 높이(인풋/스텝버튼 공통) - 원하면 36~44로 조절 */
+  --au-bid-side: calc(var(--au-row-h)*2 + var(--au-gap)); /* 입찰버튼 한 칸 너비(정사각형) */
+}
+
+/* 그리드: 좌측 2행(입력/스텝버튼), 우측 1열(입찰버튼이 두 행 합쳐서) */
+.console .controls-grid{
+  display: grid;
+  grid-template-columns: 1fr var(--au-bid-side);
+  grid-template-rows: var(--au-row-h) var(--au-row-h);
+  gap: var(--au-gap);
+  align-items: stretch;
+  margin-top: 8px; /* 위 블록과 살짝 간격 */
+}
+
+/* 각 셀 위치 지정 */
+.controls-grid .left.row1{ grid-column:1; grid-row:1; }
+.controls-grid .left.row2{ grid-column:1; grid-row:2; }
+.controls-grid .right.bid-span{
+  grid-column:2; grid-row:1 / span 2;
+  display:flex;
+}
+
+/* 입찰 버튼: 두 행 높이 꽉 채우고 정사각형에 가깝게 */
+#btnBid{
+  width: 100%;
+  height: 100%;
+  font-weight: 700;
+}
+
+/* 숫자 입력창 높이 통일 */
+.input-number.bid-input{
+  height: var(--au-row-h);
+  line-height: var(--au-row-h);
+  font-size: 14px;
+  padding: 0 10px;
+}
+
+/* 스텝 버튼 영역 보이도록 강제 */
+.step-buttons{
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;  /* 좁을 때 줄바꿈 */
+}
+
+/* +10 / +20 / +50 버튼 높이 통일 */
+.step-buttons .btn.step,
+#btnAllinQuick{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--au-row-h);
+  line-height: var(--au-row-h);
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+/* 비활성화 시에도 숨기지 말고 흐리게만 (혹시 기존 CSS가 display:none 한다면 덮어쓰기) */
+.controls-grid.is-disabled .btn,
+.controls-grid.is-disabled .input-number{
+  opacity: .55;
+  pointer-events: none;
+}
+
+/* ===== 올인 버튼을 스텝 버튼과 동일 스타일로 ===== */
+#auctionApp #step3 .step-buttons #btnAllinQuick{
+  background:#0e1218 !important;
+  border-color:var(--border) !important;
+  color:#fff !important;
+  font-weight:700;
+  height: var(--au-row-h);         /* +버튼과 같은 높이 */
+  line-height: var(--au-row-h);
+  padding: 0 12px;
+  font-size:14px;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+
+/* ===== '입찰' 버튼 hover 정의 (기준) ===== */
+#auctionApp .btn.primary:hover{
+  background:#1f6ae6;              /* 입찰 hover 색 */
+  border-color:#1b5cd1;
+  color:#fff;
+  filter:none;
+}
+
+/* ===== +버튼/올인도 '입찰' hover처럼 보이게 통일 ===== */
+#auctionApp #step3 .step-buttons .btn.step:hover,
+#auctionApp #step3 .step-buttons #btnAllinQuick:hover{
+  background:#1f6ae6;              /* 입찰 hover와 동일 */
+  border-color:#1b5cd1;
+  color:#fff;
+  filter:none;
+}
+
+/* 포커스 가시성(입찰/스텝/올인 공통) */
+#auctionApp .btn.primary:focus-visible,
+#auctionApp #step3 .step-buttons .btn.step:focus-visible,
+#auctionApp #step3 .step-buttons #btnAllinQuick:focus-visible{
+  outline:2px solid #8ab4ff;
+  outline-offset:2px;
+}
+
+/* 눌렀을 때 살짝 눌리는 느낌(입찰/스텝/올인 공통) */
+#auctionApp .btn.primary:active,
+#auctionApp #step3 .step-buttons .btn.step:active,
+#auctionApp #step3 .step-buttons #btnAllinQuick:active{
+  transform: translateY(1px);
+}
+
+/* 비활성화일 때는 보여만 주고 흐리게(이미 있는 규칙 보강) */
+#auctionApp #step3 .controls-grid.is-disabled .btn,
+#auctionApp #step3 .controls-grid.is-disabled .input-number{
+  opacity:.55; pointer-events:none;
+}

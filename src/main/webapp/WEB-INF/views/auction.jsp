@@ -114,7 +114,7 @@
 			  </div>
 			</div>
 			<div class="kv-grid">
-			  <!-- 1행: 2개(반반) -->
+			  <!-- 1행 -->
 			  <div class="kv two-line span-3">
 			    <span class="k">현재 경매가</span>
 			    <span class="v" id="currentPrice">0</span>
@@ -123,8 +123,8 @@
 			    <span class="k">현재 입찰자</span>
 			    <span class="v" id="bidStatus">-</span>
 			  </div>
-			
-			  <!-- 2행: 3개(1/3씩 동일 폭) -->
+
+			  <!-- 2행 -->
 			  <div class="kv two-line span-2">
 			    <span class="k">평균 경매가</span>
 			    <span class="v" id="avgPrice">-</span>
@@ -141,14 +141,29 @@
 			    <span class="v" id="countdown">--</span>
 			  </div>
 			</div>
-
-			<div class="row top controls">
-			  <div class="ig">
-			    <input type="number" id="bidAmount" min="0" step="10" class="input-number" placeholder="경매 시작 대기중"/>
-			    <button class="btn primary" id="btnBid">입찰</button>
-			    <button class="btn danger" id="btnAllin">올인</button>
+			
+			<div class="controls-grid">
+			  <div class="left row1">
+			    <input type="number"
+			           id="bidAmount"
+			           min="0"
+			           step="10"
+			           class="input-number bid-input"
+			           placeholder="금액 입력 (10 단위)"/>
+			  </div>
+			  <div class="right bid-span">
+			    <button class="btn primary btnBid" id="btnBid" title="입찰">입찰</button>
+			  </div>
+			  <div class="left row2">
+			    <div class="step-buttons">
+			      <button type="button" class="btn step" data-step="10">+10</button>
+			      <button type="button" class="btn step" data-step="20">+20</button>
+			      <button type="button" class="btn step" data-step="50">+50</button>
+			      <button type="button" class="btn warn" id="btnAllinQuick">올인</button>
+			    </div>
 			  </div>
 			</div>
+			
 			<div class="hint" aria-live="polite">경매 최소 단위 : ~100:+10 / 100~400:+20 / 400~:+50 (모든 입찰 10단위)</div>
         </div>
 
@@ -295,8 +310,8 @@
   function setStep(step){
 	  $("#auctionApp").attr("data-state", step);
 	  document.body.setAttribute("data-state", step);
-	  $(".step").hide();
-
+	  $(".card.step").hide();   // 섹션만 숨기기
+	  
 	  if(step==="STEP1") { $("#step1").show(); }
 
 	  if(step==="STEP2") { $("#step2").show(); }
@@ -748,8 +763,9 @@
         if (G.myTeamId && data.teamMembers) {
           var ml = data.teamMembers[String(G.myTeamId)] || [];
           var full = ml.length >= 4;
-          $("#btnBid, #btnAllin, #bidAmount").prop("disabled", full);
-          $(".controls .ig").toggleClass("is-disabled", full);
+		  $("#btnBid, #bidAmount, #btnAllinQuick").prop("disabled", full);
+		  $(".step-buttons .btn.step").prop("disabled", full);
+		  $(".controls-grid").toggleClass("is-disabled", full);
           $(".hint").text(full ? "팀 정원 5명 완료" : "경매 단위 :  ~100 : +10 / 100~400 : +20 / 400~ : +50");
         }
         setTimeout(syncState, 0);
@@ -906,37 +922,37 @@
   }
 
   function toggleControlsFromResp(r){
-	  if (!r || r.success!==true) return;
-	  var c = r.data || {};
-	  var canBid = (c.canBid !== false);
-	  $("#btnBid").prop("disabled", !canBid);
-	  $("#bidAmount").prop("disabled", !canBid);
-	  $("#btnAllin").prop("disabled", !canBid || !c.canAllin);
-	  $(".controls .ig").toggleClass("is-disabled", !canBid);
+    if (!r || r.success!==true) return;
+    var c = r.data || {};
+    var canBid = (c.canBid !== false);
 
-	  if (!canBid) {
-	    $(".hint").text("팀 정원 5명 완료");
-	    AUC_NEXT_MIN = null; AUC_GRACE = false;
-	    return;
-	  }
-	  if (typeof c.nextMin === 'number') {
-	    AUC_NEXT_MIN = c.nextMin;
-	    $("#bidAmount")
-	      .attr("min", c.nextMin)
-	      .attr("step", 10)
-	      .attr("placeholder", c.nextMin + " 이상 (10 단위)");
-	  } else {
-	    AUC_NEXT_MIN = null;
-	  }
-	  AUC_GRACE = !!c.grace;
+    $("#btnBid").prop("disabled", !canBid);
+    $("#bidAmount").prop("disabled", !canBid);
+    // 스텝버튼 일괄 토글
+    $(".step-buttons .btn.step").prop("disabled", !canBid);
+	$("#btnAllinQuick").prop("disabled", !canBid || !c.canAllin);
+    // 그리드 컨테이너에 상태 표시(선택)
+    $(".controls-grid").toggleClass("is-disabled", !canBid);
 
-	  if (AUC_GRACE) {
-	    $(".hint").text("올인 직후 1회: 최소 +10 (모든 입찰 10단위)");
-	  } else {
-	    $(".hint").text("경매 최소 단위 : ~100:+10 / 100~400:+20 / 400~:+50 (모든 입찰 10단위)");
-	  }
-	}
+    if (!canBid) {
+      $(".hint").text("팀 정원 5명 완료");
+      AUC_NEXT_MIN = null; AUC_GRACE = false;
+      return;
+    }
 
+    if (typeof c.nextMin === 'number') {
+      AUC_NEXT_MIN = c.nextMin;
+      $("#bidAmount")
+        .attr("min", c.nextMin)
+        .attr("step", 10)
+        .attr("placeholder", c.nextMin + " 이상 (10 단위)");
+    } else {
+      AUC_NEXT_MIN = null;
+    }
+    AUC_GRACE = !!c.grace;
+
+    $(".hint").text("경매 최소 단위 : ~100:+10 / 100~400:+20 / 400~:+50 (모든 입찰 10단위)");
+  }
 
   function updateAuctionConsole(s){
 	  if (!s) return;
@@ -1060,9 +1076,12 @@
 	    $.getJSON(URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + s.pickId + "/controls")
 	      .done(toggleControlsFromResp);
 	  } else {
-	    $("#btnBid, #btnAllin, #bidAmount").prop("disabled", true);
-	    $(".controls .ig").addClass("is-disabled");
-	    $(".hint").text("관리자 모드");
+		$("#btnBid, #bidAmount").prop("disabled", true);
+		$(".step-buttons .btn.step").prop("disabled", true);
+		$("#btnBid, #bidAmount, #btnAllinQuick").prop("disabled", true);
+		$(".step-buttons .btn.step").prop("disabled", true);
+		$(".controls-grid").addClass("is-disabled");
+		$(".hint").text("관리자 모드");
 	  }
 
 	  // 대기(다음 픽 준비) 상태
@@ -1132,26 +1151,6 @@
 	    clearBidInput();
 	  });
 	});
-	  
-
-  $(document).on("click", "#btnAllin", function(){
-    if (!G.code || !G.currentPickId) { alert("입찰 진행중인 건이 없습니다."); return; }
-    var $btn = $(this).prop("disabled", true);
-    $.ajax({
-      url: URLS.auctionBase + encodeURIComponent(G.code) + "/picks/" + G.currentPickId + "/bid",
-      type: "POST",
-      contentType: "application/json; charset=UTF-8",
-      data: JSON.stringify({ allin: "Y" })
-    }).done(function(res){
-      if (!res || res.success!==true){
-        alert((res && res.error && res.error.msg) ? res.error.msg : "올인 실패");
-      }
-    }).fail(function(){
-      alert("네트워크 오류로 올인 실패");
-    }).always(function(){
-      $btn.prop("disabled", false);
-    });
-  });
 
   $(document).on("change", "#bidAmount", function(){
 	  var raw = $(this).val();
@@ -1360,13 +1359,6 @@
 
 	$("#bidAmount").on("wheel", e => e.preventDefault());
 
-	// 공통: 입력칸 비우기
-	function clearBidInput(){
-	  var $in = $("#bidAmount");
-	  $in.val("");
-	  $in[0]?.setCustomValidity("");
-	}
-
 	// 공통: 알림 + 입력칸 비우기 + 포커스
 	function alertAndClear(msg){
 	  alert(msg);
@@ -1374,6 +1366,40 @@
 	  $("#bidAmount").focus();
 	}
 
+	// +10 / +20 / +50 스텝 버튼
+	$(document).on("click", ".step-buttons .btn.step", function(){
+	  var step = parseInt($(this).data("step"), 10) || 0;
+	  var $in = $("#bidAmount");
+	  var curIn     = parseInt($in.val(), 10);
+	  var curPrice  = parseInt($("#currentPrice").text() || "0", 10);
+	  var base      = isNaN(curIn) ? curPrice : curIn;   // ← 입력 비면 '현재가' 기준
+	  var next      = base + step;
+
+	  // 10단위로 스냅
+	  if (next % 10 !== 0) next = Math.ceil(next / 10) * 10;
+
+	  // 서버 최소 입찰(nextMin) 보장
+	  if (AUC_NEXT_MIN != null && next < AUC_NEXT_MIN) next = AUC_NEXT_MIN;
+
+	  $in.val(next).trigger("change").focus();
+	});
+	
+	// 올인(입력칸만 채우기) - 현재가/최소입찰/AUC_GRACE 고려, 잔액 초과하지 않음
+	$(document).on("click", "#btnAllinQuick", function(){
+	  var $in = $("#bidAmount");
+	  var curIn     = parseInt($in.val(), 10);
+	  var current   = parseInt($("#currentPrice").text() || "0", 10) || 0;
+	  var nextMin   = (typeof AUC_NEXT_MIN === "number") ? AUC_NEXT_MIN : (current + 10);
+	  var myLeft    = parseInt($("#myBudget").text() || "0", 10) || 0;
+
+	  // 기준값: 입력칸 있으면 그 값, 없으면 현재가/최소입찰 기준
+	  var base = isNaN(curIn) ? Math.max(current + 10, nextMin) : Math.max(curIn, nextMin);
+	  var target = Math.min(myLeft, base);
+
+	  // 10단위 보정
+	  if (target % 10 !== 0) target += (10 - (target % 10));
+	  $in.val(target).trigger("change");
+	});
 	
 })(window.jQuery || window.$);
 </script>
