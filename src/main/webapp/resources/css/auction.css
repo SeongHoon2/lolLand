@@ -486,15 +486,15 @@ body[data-state="STEP3"] #auctionApp.container{
 
 /* ===== 올인 버튼을 스텝 버튼과 동일 스타일로 ===== */
 #auctionApp #step3 .step-buttons #btnAllinQuick{
-  background:#0e1218 !important;
-  border-color:var(--border) !important;
-  color:#fff !important;
-  font-weight:700;
-  height: var(--au-row-h);         /* +버튼과 같은 높이 */
-  line-height: var(--au-row-h);
-  padding: 0 12px;
-  font-size:14px;
-  display:inline-flex; align-items:center; justify-content:center;
+	background:#0e1218;
+	border-color:var(--border);
+	color:#fff;
+	font-weight:700;
+	height: var(--au-row-h);
+	line-height: var(--au-row-h);
+	padding: 0 12px;
+	font-size:14px;
+	display:inline-flex; align-items:center; justify-content:center;
 }
 
 /* ===== '입찰' 버튼 hover 정의 (기준) ===== */
