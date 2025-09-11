@@ -152,7 +152,10 @@
 			           placeholder="금액 입력 (10 단위)"/>
 			  </div>
 			  <div class="right bid-span">
-			    <button class="btn primary btnBid" id="btnBid" title="입찰">입찰</button>
+			  <button class="btn primary btnBid" id="btnBid" title="입찰 (Enter 가능)">
+			    <span class="btn-main">입찰</span>
+			    <span class="btn-sub">(엔터 가능)</span>
+			  </button>
 			  </div>
 			  <div class="left row2">
 			    <div class="step-buttons">
@@ -966,16 +969,26 @@
 	    if (!DID_BIDDER_UPDATE) { $("#bidStatus").text("-"); }
 
 	    // ★ 유찰(assigned=false) 또는 requeued 때는 리스트 '낙찰' 칸을 '-'로 되돌린다
-	    if ((s.assigned === false || s.requeued === true) && s.targetNick) {
-	      $("#playerBody tr").each(function(){
-	        var $tds = $(this).find("td");
-	        if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
-	          $tds.eq(5).text('-');
-	          $(this).removeClass('leading');
-	          return false;
-	        }
-	      });
-	    }
+	    if ((s.assigned === false || s.assigned === "false" || s.requeued === true || s.requeued === "true") && s.targetNick) {
+		  $("#playerBody tr").each(function(){
+		    var $tr  = $(this);
+		    var $tds = $tr.find("td");
+		    if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
+		      $tds.eq(5).text('-');
+		      $tr.removeClass('leading');
+		
+		      var requeued       = (s.requeued === true || s.requeued === "true");
+		      var assignedFalse  = (s.assigned === false || s.assigned === "false");
+		
+		      if (requeued) {
+		        $tr.removeClass('unsold');   // 재큐이면 유찰표시 제거
+		      } else if (assignedFalse) {
+		        $tr.addClass('unsold');      // 진짜 유찰이면 표시
+		      }
+		      return false;
+		    }
+		  });
+		}
 	  }
 
 	  // 새 픽 진입 시 콘솔 상태 초기화 (리스트 가격칸은 건드리지 않음)
@@ -1061,8 +1074,8 @@
 	      $("#playerBody tr").each(function(){
 	        var $tds = $(this).find("td");
 	        if ($tds.eq(1).text().trim() === String(s.targetNick).trim()) {
-	          $tds.eq(5).text(s.price != null ? s.price : "-");
-	          $(this).addClass("sold won");
+	        	$tds.eq(5).text(s.price != null ? s.price : "-");
+	        	$(this).addClass("sold won").removeClass("unsold");
 	          return false;
 	        }
 	      });

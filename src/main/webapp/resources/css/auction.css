@@ -355,12 +355,10 @@ body[data-state="STEP3"] #auctionApp.container{
 
 /* ── 입찰 컨트롤: 2행 그리드 + 우측 단일 입찰 버튼(span 2 rows) ───────── */
 #auctionApp #step3 .controls-grid{
-  display:grid;
-  grid-template-columns: 1fr auto; /* 좌: 컨트롤 묶음 / 우: 입찰 버튼 */
-  grid-template-rows: auto auto;   /* 1행, 2행 */
-  gap: 10px 8px;
-  width:100%;
-  margin-top:12px;
+  display: grid;
+  grid-template-columns: 1fr var(--au-bid-side);
+  grid-template-rows: var(--au-row-h) var(--au-row-h);
+  gap: var(--au-gap);
 }
 
 #auctionApp #step3 .controls-grid .left{ min-width:0; }
@@ -373,14 +371,12 @@ body[data-state="STEP3"] #auctionApp.container{
 }
 
 #auctionApp #step3 .controls-grid .btnBid{
-  height:100%;                  /* ★ 그리드 영역의 전체 높이 채우기(두 행 합) */
-  aspect-ratio: 1 / 1;          /* ★ 정사각형에 가깝게 */
-  min-width: 88px;              /* 너무 작지 않게 가드 */
-  max-width: 160px;             /* 너무 커지는 것 방지(원하면 조절) */
-  font-size:18px; font-weight:800;
-  border-radius:12px;
-  padding:0 14px;
-  display:flex; align-items:center; justify-content:center;
+  display:flex;               /* 이미 있음: 재확인 */
+  flex-direction:column;      /* ← 세로 쌓기 */
+  align-items:center;
+  justify-content:center;
+  gap:2px;                    /* 두 줄 간격 */
+  line-height:1.15;
 }
 
 /* 1행: 입력칸 */
@@ -533,4 +529,45 @@ body[data-state="STEP3"] #auctionApp.container{
 #auctionApp #step3 .controls-grid.is-disabled .btn,
 #auctionApp #step3 .controls-grid.is-disabled .input-number{
   opacity:.55; pointer-events:none;
+}
+
+/* Enter 힌트 배지 */
+#auctionApp .mini-hint{
+  align-self:center;
+  font-size:11px;
+  color:var(--muted);
+}
+#auctionApp .mini-hint .kbd{
+  display:inline-block;
+  padding:1px 6px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:11px;
+  background:#0e1218;
+  margin-left:6px;
+}
+
+#finalTeamSheetBody tr:nth-child(4n+1):not(:first-child) td{
+  border-top-width:3px;
+  border-top-color:#3a4150;
+}
+
+/* 첫 줄: 굵고 크게 */
+#auctionApp #step3 .controls-grid .btnBid .btn-main{
+  font-size:18px;             /* 기존 버튼 폰트와 동일/유지 */
+  font-weight:800;
+}
+
+/* 둘째 줄: 작게, 살짝 옅게 */
+#auctionApp #step3 .controls-grid .btnBid .btn-sub{
+  font-size:12px;
+  font-weight:600;
+  opacity:.9;
+}
+
+/* 유찰된 선수(닉네임만 금색) */
+#playerTable tr.unsold td:nth-child(2){
+  color: var(--accent);  /* #ffd54d */
+  font-weight: 800;
 }
